@@ -1,6 +1,6 @@
 Allgemein
  
-- PredServ runs as server-process. After startup it will receive http-request on port 80. The requests at the moment include station and timespan.
+- PredServ runs as server-process. After startup it will accept http-requests on port 80. The requests at the moment include station and timespan.
 
 command line options:
 -h[elp]: prints this help to stdout//file
