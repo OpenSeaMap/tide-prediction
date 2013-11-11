@@ -14,7 +14,3 @@ http://localhost:1234/?S=66;H=48;
 
 S: StatID
 H: hours to predict
-
-----
-
-20131111 - initial commit to GitHub successful. But I am not sure the repostitory is ok. I will check, if all neccessary things are there and not to much unneccessary ones. AH
