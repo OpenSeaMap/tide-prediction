@@ -14,4 +14,6 @@ http://localhost:1234/?S=66;H=48;
 S: StatID
 H: hours to predict
 
--- try No 3 to commit and push upstream
+----
+
+2013-12-30 AH now it looks like git is finally configured well, so commits do work
