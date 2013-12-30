@@ -13,3 +13,5 @@ http://localhost:1234/?S=66;H=48;
 
 S: StatID
 H: hours to predict
+
+-- next try
