@@ -8,7 +8,6 @@ command line options:
 -p[ort]: port to listen to
 
 
-currently station with id's < 666 are supported
 examples:
 http://localhost:1234/?S=66;H=48;
 
