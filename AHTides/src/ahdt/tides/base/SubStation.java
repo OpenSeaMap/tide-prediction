@@ -22,8 +22,10 @@ import ahdt.tides.base.AHTUnits.AHTidePredictionUnits;
 import ahdt.tides.tcd.TideRecord;
 
 /**
+ * The SubStation is a station which calculates its data by the data of the reference station 
+ * and afterwards applies some corrections to these data
  * 
- * @author hd214c
+ * @author humbach
  */
 public class SubStation extends Station
 {
@@ -78,11 +80,22 @@ public class SubStation extends Station
 	}
 	*/
 
-	public SubStation(TideRecord tRec)
+	/**
+	 * constructs a SubStation from a TideDB record
+	 * 
+	 * @param tRefRec is the TideRecord whose data are to be loaded into the station object as reference station
+	 * @param tRec is the TideRecord whose data are to be loaded into the station object as corrections to the reference station
+	 */
+	public SubStation(TideRecord tRec, TideRecord tRefRec)
 	{
 		super(tRec);
 	}
-
+	
+	/**
+	 * Sets the hairyOffsets of this Station and does some evaluation
+	 * 
+	 * @param HairyOffsets tOff
+	 */
 	public void ApplyHairyOffsets(HairyOffsets tOff)
 	{
 		m_tHOffs = tOff;
@@ -277,7 +290,7 @@ public class SubStation extends Station
 			logger.log(java.util.logging.Level.FINE, AHTideBaseStr.getString("SubStation.7") + subleftp.getValue()); //$NON-NLS-1$
 			logger.log(java.util.logging.Level.FINE, AHTideBaseStr.getString("SubStation.8") + subrightt.getSeconds()); //$NON-NLS-1$
 			logger.log(java.util.logging.Level.FINE, AHTideBaseStr.getString("SubStation.9") + subrightp.getValue()); //$NON-NLS-1$
-			logger.log(java.util.logging.Level.FINE, AHTideBaseStr.getString("SubStation.10") + uncleftt.getSeconds()); //$NON-NLS-1$
+			logger.log(java.util.logging.Level.FINE, AHTideBaseStr.getString("AHTides.NewLine") + uncleftt.getSeconds()); //$NON-NLS-1$
 			logger.log(java.util.logging.Level.FINE, AHTideBaseStr.getString("SubStation.11") + uncleftp.getValue()); // wrong //$NON-NLS-1$
 			logger.log(java.util.logging.Level.FINE, AHTideBaseStr.getString("SubStation.12") + uncrightt.getSeconds()); // wrong //$NON-NLS-1$
 			logger.log(java.util.logging.Level.FINE, AHTideBaseStr.getString("SubStation.13") + uncrightp.getValue()); // wrong //$NON-NLS-1$
@@ -307,8 +320,6 @@ public class SubStation extends Station
 		double term3 = term2.divide(term1);
 		Interval term4 = uncrightt.minus(uncleftt);
 		Interval term5 = term4.multiply(term3);
-		AHTimestamp t1 = uncleftt.plus(term5);
-
 		AHTimestamp t = uncleftt.plus(uncrightt.minus(uncleftt).multiply(predictTime.minus(subleftt).divide(subrightt.minus(subleftt))));
 		// PredictionValue term1 = uncrightp - uncleftp;
 		// PredictionValue term2 = (Station::predictTideLevel(t) - uncleftp);
@@ -518,7 +529,7 @@ public class SubStation extends Station
 
 	private void addInterpolatedSubstationMarkCrossingEvents(AHTimestamp startTime, AHTimestamp endTime, TideEventsOrganizer organizer)
 	{
-		boolean isRising;
+//		boolean isRising;
 
 		// Problem #1. Need to extract the set of relevant events.
 
@@ -730,8 +741,4 @@ public class SubStation extends Station
 		}
 	}
 
-	public void setOffsets(HairyOffsets tHO)
-	{
-		m_tHOffs = tHO;
-	}
 }

@@ -66,10 +66,13 @@ public class CurrentBearing extends AHNullable
 		return textOut;
 	}
 
-	public CurrentBearing(int degrees, boolean degreesTrue)
+	public CurrentBearing(int degrees)
 	{
+		if (degrees >= 0 && degrees < 360)
 		this.degrees = degrees;
-		this.degreesTrue = degreesTrue;
+		else
+			degrees = 0;
+		this.degreesTrue = true;
 	}
 
 	public int getDegrees()

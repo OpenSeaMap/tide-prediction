@@ -19,19 +19,24 @@
 //package net.floogle.jTide;
 package ahdt.tides.base;
 
+import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.logging.Logger;
 
 import ahdt.tides.base.AHTUnits.AHTidePredictionUnits;
+import ahdt.tides.tcd.AHTideTCDStr;
+import ahdt.tides.tcd.TideDB;
 import ahdt.tides.tcd.TideRecord;
 import ahdt.tides.tcd.TideRecord.EStatType;
 
 /**
  * A Station is the object enabling calculations and predictions.
  * 
- * Station has the subclasses RefStation and SubStation. The superclass is used for reference stations and that rare subordinate station where the offsets can be reduced to simple
- * corrections to the constituents and datum. After such corrections are made, there is no operational difference between that and a reference station.
+ * Station has the subclasses RefStation and SubStation. 
  * 
+ * The superclass is used for reference stations and that rare subordinate station where the offsets can be reduced to simple
+ * corrections to the constituents and datum. After such corrections are made, there is no operational difference between that 
+ * and a reference station.
  * 
  * @author humbach
  * 
@@ -73,62 +78,16 @@ public class Station implements Cloneable
 	// least negative.
 
 	/**
-	 * @param constructs
-	 *          a station from a TideDB record
+	 * constructs a station from a TideDB record
+	 * 
+	 * @param tRec is the TideRecord whose data are to be loaded into the station object
 	 */
 	public Station(TideRecord tRec)
 	{
 		m_ID = tRec.getID();
 		step = new Interval();
-		loadStation(tRec);
 	}
-
-	/**
-	 * Load the station with the data from the TideRecord.
-	 * 
-	 * @param tRec
-	 */
-	public void loadStation(TideRecord tRec)
-	{
-		m_strNotes = tRec.getNotes();
-		m_Coordinates = new Coordinates(tRec.getLat(), tRec.getLon());
-		m_TimeZone = AHTideBaseStr.getString("Station.0"); //$NON-NLS-1$
-		String strName = tRec.getName();
-		if (tRec.getLegalese() != 0)
-		{
-			strName += AHTideBaseStr.getString("Station.1"); //$NON-NLS-1$
-			strName += /* get_legalese(rec.legalese) */(char) tRec.getLegalese();
-		}
-		m_strName = strName;
-	}
-
-	// private Station(String name, StationRef stationRef, ConstituentSet
-	// constituents, String note, CurrentBearing minCurrentBearing,
-	// CurrentBearing maxCurrentBearing, Deque<MetaField> metaData)
-	// {
-	// this.m_strName = name;
-	// this.timeZone = stationRef.getTimeZone();
-	// this.minCurrentBearing = minCurrentBearing;
-	// this.maxCurrentBearing = maxCurrentBearing;
-	// this.note = note;
-	// this.isCurrent = AHTUnits.isCurrent(constituents.getPredictUnits());
-	// this.aspect = 0; // TODO: fix this
-	// this.step = new Interval();
-	// this.stationRef = stationRef;
-	// this.constituents = constituents;
-	// this.metadata = metaData;
-	//
-	// }
-
-	/**
-	 * This method is only used when applying settings from the control panel, and then only because toggling constituent inference requires a reload. Marklevel
-	 * and step are preserved. Aspect and units are reset to defaults or whatever the new settings specified.
-	 **/
-	public void reload()
-	{
-		throw new UnsupportedOperationException();
-	}
-
+	
 	public void dump()
 	{
 		System.out.println(AHTideBaseStr.getString("Station.2") + getName()); //$NON-NLS-1$
@@ -473,14 +432,15 @@ public class Station implements Cloneable
 	}
 
 	/*
-	 * findZero (time_t t1, time_t t2, double (*f)(time_t t, int deriv)) Find a zero of the function f, which is bracketed by t1 and t2. Returns a value which is
-	 * either an exact zero of f, or slightly past the zero of f.
+	 * findZero (time_t t1, time_t t2, double (*f)(time_t t, int deriv)) 
+	 * Find a zero of the function f, which is bracketed by t1 and t2. 
+	 * Returns a value which is either an exact zero of f, or slightly past the zero of f.
 	 */
 
 	// Root finder.
-	// * If tl >= tr, assertion failure.
-	// * If tl and tr do not bracket a root, assertion failure.
-	// * If a root exists exactly at tl or tr, assertion failure.
+	// If tl >= tr, assertion failure.
+	// If tl and tr do not bracket a root, assertion failure.
+	// If a root exists exactly at tl or tr, assertion failure.
 
 	private AHTimestamp findZero(AHTimestamp tl, AHTimestamp tr, DairikiFunctor functor, PredictionValue marklev)
 	{
@@ -510,17 +470,11 @@ public class Station implements Cloneable
 			if (t.isNull())
 				dt = new Interval(Global.ZERO_INTERVAL); // Force bisection on
 			// first step
-			else if (PredictionValue.abs(ft).gt(f_thresh) /*
-																										 * not decreasing fast enough
-																										 */
-					|| (ft.getValue() > 0.0 ? /*
-																		 * newton step would go outside bracket
-																		 */
-					(fp.lte(ft.divide(t.minus(tl).getSeconds()))) : (fp.lte(ft.negative().divide(tr.minus(t).getSeconds())))))
+			else if ((PredictionValue.abs(ft).gt(f_thresh)) || (ft.getValue() > 0.0 ? (fp.lte(ft.divide(t.minus(tl).getSeconds()))) : (fp.lte(ft.negative().divide(tr.minus(t).getSeconds())))))
 				dt = new Interval(Global.ZERO_INTERVAL); /* Force bisection */
 			else
 			{
-				/* Attempt a newton step */
+				// Attempt a newton step
 				assert (fp.getValue() != 0.0);
 				// Here I actually do want to round away from zero.
 				dt = new Interval(llround(ft.negative().divide(fp)));
@@ -535,20 +489,18 @@ public class Station implements Cloneable
 
 				t.plusEquals(dt);
 				if (t.gte(tr) || t.lte(tl))
-					dt = new Interval(Global.ZERO_INTERVAL); /*
-																										 * Force bisection if outside bracket
-																										 */
+					dt = new Interval(Global.ZERO_INTERVAL); // Force bisection if outside bracket
 				f_thresh = ft.abs().divide(2.0);
 			}
 			if (dt.equals(Global.ZERO_INTERVAL))
 			{
-				/* Newton step failed, do bisection */
+				// Newton step failed, do bisection
 				t = tl.plus(tr.minus(tl).divide(2));
 				f_thresh = fr.gt(fl.negative()) ? new PredictionValue(fr) : new PredictionValue(fl.negative());
 			}
 			ft = functor.functor(t, 0, marklev).times(scale);
 			if (ft.getValue() == 0.0)
-				return t; /* Exact zero */
+				return t; // Exact zero
 			else if (ft.getValue() > 0.0)
 			{
 				tr = new AHTimestamp(t);
@@ -906,4 +858,117 @@ public class Station implements Cloneable
 		}
 		return ret;
 	}
+	/**
+	 * @return the logger
+	 */
+	public Logger getLogger()
+	{
+		return logger;
+	}
+
+	/**
+	 * @param logger the logger to set
+	 */
+	public void setLogger(Logger logger)
+	{
+		this.logger = logger;
+	}
+
+	/**
+	 * @return the m_ID
+	 */
+	public int getID()
+	{
+		return m_ID;
+	}
+
+	/**
+	 * @param m_ID the m_ID to set
+	 */
+	public void setID(int m_ID)
+	{
+		this.m_ID = m_ID;
+	}
+
+	/**
+	 * @param m_strName the m_strName to set
+	 */
+	public void setName(String m_strName)
+	{
+		this.m_strName = m_strName;
+	}
+
+	/**
+	 * @param m_TimeZone the m_TimeZone to set
+	 */
+	public void setTimeZone(String m_TimeZone)
+	{
+		this.m_TimeZone = m_TimeZone;
+	}
+
+	/**
+	 * @param m_strNotes the m_strNotes to set
+	 */
+	public void setNotes(String m_strNotes)
+	{
+		this.m_strNotes = m_strNotes;
+	}
+
+	/**
+	 * @param m_Coordinates the m_Coordinates to set
+	 */
+	public void setCoordinates(Coordinates m_Coordinates)
+	{
+		this.m_Coordinates = m_Coordinates;
+	}
+
+	/**
+	 * @return the m_tConst
+	 */
+	public ConstituentSet getConst()
+	{
+		return m_tConst;
+	}
+
+	/**
+	 * @param m_tConst the m_tConst to set
+	 */
+	public void setConst(ConstituentSet m_tConst)
+	{
+		this.m_tConst = m_tConst;
+	}
+
+	/**
+	 * @return the minimumTimeOffset
+	 */
+	public Interval getMinimumTimeOffset()
+	{
+		return minimumTimeOffset;
+	}
+
+	/**
+	 * @param minimumTimeOffset the minimumTimeOffset to set
+	 */
+	public void setMinimumTimeOffset(Interval minimumTimeOffset)
+	{
+		this.minimumTimeOffset = minimumTimeOffset;
+	}
+
+	/**
+	 * @return the maximumTimeOffset
+	 */
+	public Interval getMaximumTimeOffset()
+	{
+		return maximumTimeOffset;
+	}
+
+	/**
+	 * @param maximumTimeOffset the maximumTimeOffset to set
+	 */
+	public void setMaximumTimeOffset(Interval maximumTimeOffset)
+	{
+		this.maximumTimeOffset = maximumTimeOffset;
+	}
+
+
 }

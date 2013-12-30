@@ -118,14 +118,8 @@ public class HarmonicsFile
 		String note = rec.getNotes();
 		CurrentBearing minCurrentBearing = new CurrentBearing(), maxCurrentBearing = new CurrentBearing();
 		boolean isDegreesTrue = !(tideDB.findDirUnits(AHTideBaseStr.getString("HarmonicsFile.4")) == rec.getDirection_units()); //$NON-NLS-1$
-		if (rec.getMinDirection() >= 0 && rec.getMinDirection() < 360)
-		{
-			minCurrentBearing = new CurrentBearing(rec.getMinDirection(), isDegreesTrue);
-		}
-		if (rec.getMaxDirection() >= 0 && rec.getMaxDirection() < 360)
-		{
-			maxCurrentBearing = new CurrentBearing(rec.getMaxDirection(), isDegreesTrue);
-		}
+			minCurrentBearing = new CurrentBearing(rec.getMinDirection());
+			maxCurrentBearing = new CurrentBearing(rec.getMaxDirection());
 		String name = rec.getName();
 		if (rec.getLegalese() != 0)
 		{
@@ -304,7 +298,7 @@ public class HarmonicsFile
 			{
 				metadata.push(new MetaField(AHTideBaseStr.getString("HarmonicsFile.36"), tideDB.getDateStr(rec.getExpirationDate()))); //$NON-NLS-1$
 			}
-			metadata.push(new MetaField(AHTideBaseStr.getString("HarmonicsFile.37"), String.format(AHTideBaseStr.getString("HarmonicsFile.38"), rec.getConfidence()))); //$NON-NLS-1$ //$NON-NLS-2$
+			metadata.push(new MetaField(AHTideBaseStr.getString("HarmonicsFile.37"), String.format(AHTideBaseStr.getString("HarmonicsFile.34"), rec.getConfidence()))); //$NON-NLS-1$ //$NON-NLS-2$
 			break;
 
 		case SUBORDINATE_STATION:
@@ -332,7 +326,7 @@ public class HarmonicsFile
 	private void parse_xfields(Deque<MetaField> metadata, String xfields)
 	{
 		assert (xfields.length() != 0);
-		String[] x = xfields.split(AHTideBaseStr.getString("HarmonicsFile.44")); //$NON-NLS-1$
+		String[] x = xfields.split(AHTideBaseStr.getString("AHTides.NewLine")); //$NON-NLS-1$
 		String name = null, value = null;
 		for (String linebuf : x)
 		{
@@ -358,7 +352,7 @@ public class HarmonicsFile
 				{
 					name = linebuf;
 					name = name.substring(0, i);
-					value = String.format(AHTideBaseStr.getString("HarmonicsFile.45"), (i + 1)); //$NON-NLS-1$
+					value = String.format(AHTideBaseStr.getString("HarmonicsFile.34"), (i + 1)); //$NON-NLS-1$
 				}
 			}
 		}

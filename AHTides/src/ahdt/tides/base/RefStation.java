@@ -39,79 +39,14 @@ public class RefStation extends Station implements Cloneable
 {
 	private transient Logger logger = Logger.getLogger(this.getClass().getName());
 
-	protected ConstituentSet m_tConst;
-	protected CurrentBearing m_tMinCurrentBearing;
-	protected CurrentBearing m_tMaxCurrentBearing;
-
-	// Attributes that aren't intrinsic to the station, but must
-	// transfer with it is copied. Clients *are* entitled to
-	// modify these values. NOTE: markLevel must be specified in
-	// predictUnit() units.
-	protected NullablePredictionValue markLevel = new NullablePredictionValue();
-
-	// To get all tide events falling between t1 and t2, you have to
-	// scan the interval from t1 - maximumTimeOffset to t2 - minimumTimeOffset.
-	// These will remain zero for reference stations.
-	protected Interval minimumTimeOffset = new Interval(); // Most negative, or least positive.
-	protected Interval maximumTimeOffset = new Interval(); // Most positive, or least negative.
-
 	/**
-	 * @param constructs a station from a TideDB record
+	 * constructs a RefStation from a TideDB record
+	 * 
+	 * @param tRec is the TideRecord whose data are to be loaded into the station object
 	 */
 	public RefStation(TideRecord tRec)
 	{
 		super(tRec);
-		m_ID = tRec.getID();
-		step = new Interval();
-		loadStation(tRec);
-	}
-
-	/**
-	 * Load the station with the data from the TideRecord.
-	 * 
-	 * @param tRec
-	 */
-	public void loadStation(TideRecord tRec)
-	{
-		super.loadStation(tRec);
-		m_Coordinates = new Coordinates(tRec.getLat(), tRec.getLon());
-		m_TimeZone = AHTideBaseStr.getString("RefStation.0"); //$NON-NLS-1$
-		m_tConst = tRec.getConstituents(new SimpleOffsets());
-		m_bIsCurrent = AHTUnits.isCurrent(m_tConst.getPredictUnits());
-		aspect = 0;
-		String strName = tRec.getName();
-		if (tRec.getLegalese() != 0)
-		{
-			strName += AHTideBaseStr.getString("RefStation.1"); //$NON-NLS-1$
-			strName += /* get_legalese(rec.legalese) */(char) tRec.getLegalese();
-		}
-		m_strName = strName;
-	}
-
-	// private Station(String name, StationRef stationRef, ConstituentSet constituents, String note, CurrentBearing minCurrentBearing,
-	// CurrentBearing maxCurrentBearing, Deque<MetaField> metaData)
-	// {
-	// this.m_strName = name;
-	// this.timeZone = stationRef.getTimeZone();
-	// this.minCurrentBearing = minCurrentBearing;
-	// this.maxCurrentBearing = maxCurrentBearing;
-	// this.note = note;
-	// this.isCurrent = AHTUnits.isCurrent(constituents.getPredictUnits());
-	// this.aspect = 0; // TODO: fix this
-	// this.step = new Interval();
-	// this.stationRef = stationRef;
-	// this.constituents = constituents;
-	// this.metadata = metaData;
-	//
-	// }
-
-	/**
-	 * This method is only used when applying settings from the control panel, and then only because toggling constituent inference
-	 * requires a reload. Marklevel and step are preserved. Aspect and units are reset to defaults or whatever the new settings specified.
-	**/
-	public void reload()
-	{
-		throw new UnsupportedOperationException();
 	}
 
 	public void dump()
@@ -133,11 +68,10 @@ public class RefStation extends Station implements Cloneable
 	}
 
 	/**
-		// General method for generating output that fits into a Dstr (any
-		// form except PNG or X-Windows). Note that list mode is
-		// implemented as StationIndex::print.
-		**/
-	public String print(AHTimestamp startTime, AHTimestamp endTime, Constants.Mode mode, Constants.Format format)
+	 * General method for generating output that fits into a String 
+	 * (any form except PNG or X-Windows). Note that list mode is implemented as StationIndex::print.
+	 */
+		public String print(AHTimestamp startTime, AHTimestamp endTime, Constants.Mode mode, Constants.Format format)
 	{
 		return plainMode(startTime, endTime, format);
 	}
@@ -157,7 +91,7 @@ public class RefStation extends Station implements Cloneable
 		predictTideEvents(startTime, endTime, organizer, RefStation.TideEventsFilter.NO_FILTER);
 		for (TideEvent t : organizer.values())
 		{
-			textOut += t.print(Constants.Mode.PLAIN, form, this) + AHTideBaseStr.getString("RefStation.10"); //$NON-NLS-1$
+			textOut += t.print(Constants.Mode.PLAIN, form, this) + AHTideBaseStr.getString("AHTides.NewLine"); //$NON-NLS-1$
 		}
 		return textOut;
 	}
@@ -294,16 +228,6 @@ public class RefStation extends Station implements Cloneable
 		throw new UnsupportedOperationException();
 	}
 
-	public double getAspect()
-	{
-		return aspect;
-	}
-
-	public void setAspect(double aspect)
-	{
-		this.aspect = aspect;
-	}
-
 	public NullablePredictionValue getMarkLevel()
 	{
 		return markLevel;
@@ -322,61 +246,6 @@ public class RefStation extends Station implements Cloneable
 	public void setStep(Interval step)
 	{
 		this.step = step;
-	}
-
-	public Coordinates getCoordinates()
-	{
-		return m_Coordinates;
-	}
-
-	public boolean isIsCurrent()
-	{
-		return m_bIsCurrent;
-	}
-
-	public CurrentBearing getMinCurrentBearing()
-	{
-		return m_tMinCurrentBearing;
-	}
-
-	public void setMinCurrentBearing(CurrentBearing tMinCurrentBearing)
-	{
-		this.m_tMinCurrentBearing = tMinCurrentBearing;
-	}
-
-	public CurrentBearing getMaxCurrentBearing()
-	{
-		return m_tMaxCurrentBearing;
-	}
-
-	public void setMaxCurrentBearing(CurrentBearing tMaxCurrentBearing)
-	{
-		this.m_tMaxCurrentBearing = tMaxCurrentBearing;
-	}
-
-	public String getName()
-	{
-		return m_strName;
-	}
-
-	public String getNotes()
-	{
-		return m_strNotes;
-	}
-
-	public String getTimeZone()
-	{
-		return m_TimeZone;
-	}
-
-	public Deque<MetaField> getMetadata()
-	{
-		return m_tMetadata;
-	}
-
-	public void setMetadata(Deque<MetaField> metadata)
-	{
-		this.m_tMetadata = metadata;
 	}
 
 	protected boolean isSubordinateStation()

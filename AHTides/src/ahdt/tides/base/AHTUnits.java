@@ -25,12 +25,14 @@ package ahdt.tides.base;
  */
 public class AHTUnits
 {
-
 	// public enum PredictionUnits {FEET, METERS, KNOTS, KNOTS_SQUARED, ZULU};
 	public enum AHTidePredictionUnits
 	{
-
-		FEET(AHTideBaseStr.getString("AHTUnits.0"), AHTideBaseStr.getString("AHTUnits.1")), METERS(AHTideBaseStr.getString("AHTUnits.2"), AHTideBaseStr.getString("AHTUnits.3")), KNOTS(AHTideBaseStr.getString("AHTUnits.4"), AHTideBaseStr.getString("AHTUnits.5")), KNOTS_SQUARED(AHTideBaseStr.getString("AHTUnits.6"), AHTideBaseStr.getString("AHTUnits.7")), ZULU(AHTideBaseStr.getString("AHTUnits.8"), AHTideBaseStr.getString("AHTUnits.9")); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$ //$NON-NLS-4$ //$NON-NLS-5$ //$NON-NLS-6$ //$NON-NLS-7$ //$NON-NLS-8$ //$NON-NLS-9$ //$NON-NLS-10$
+		FEET(AHTideBaseStr.getString("AHTUnits.0"), AHTideBaseStr.getString("AHTUnits.1")), 
+		METERS(AHTideBaseStr.getString("AHTUnits.2"), AHTideBaseStr.getString("AHTUnits.3")), 
+		KNOTS(AHTideBaseStr.getString("AHTUnits.4"), AHTideBaseStr.getString("AHTUnits.5")), 
+		KNOTS_SQUARED(AHTideBaseStr.getString("AHTUnits.6"), AHTideBaseStr.getString("AHTUnits.7")), 
+		ZULU(AHTideBaseStr.getString("AHTUnits.8"), AHTideBaseStr.getString("AHTUnits.9"));
 
 		private final String m_strLongName;
 		private final String m_strShortName;
@@ -67,6 +69,10 @@ public class AHTUnits
 		RADIANS, DEGREES
 	};
 
+	/**
+	 * converts the units name into a units
+	 * 
+	 */
 	public static AHTidePredictionUnits parse(String unitsName)
 	{
 		for (AHTidePredictionUnits pu: AHTidePredictionUnits.values())
@@ -85,7 +91,7 @@ public class AHTUnits
 	/**
 	 * masks KNOTS_SQUARED as KNOTS
 	 * 
-	 * @param u
+	 * @param u The units to be flattened
 	 * @return KNOTS
 	 */
 	public static AHTidePredictionUnits flatten(AHTidePredictionUnits u)
@@ -95,10 +101,10 @@ public class AHTUnits
 			u = AHTidePredictionUnits.KNOTS;
 		return u;
 	}
-/** i
+/**
  * if the units are KNOTS or KNOTS_SQUARED it is a current
- * @param u
- * @return
+ * @param u The units to be checked
+ * @return true if the units are KNOTS or KNOTS_SQUARED
  */
 	public static boolean isCurrent(AHTidePredictionUnits u)
 	{
@@ -108,6 +114,8 @@ public class AHTUnits
 
 	/**
  * if the units are KNOTS_SQUARED it is a hydraulic current
+ * @param u The units to be checked
+ * @return true if the units are KNOTS_SQUARED
 	 */
 	public static boolean isHydraulicCurrent(AHTidePredictionUnits u)
 	{
