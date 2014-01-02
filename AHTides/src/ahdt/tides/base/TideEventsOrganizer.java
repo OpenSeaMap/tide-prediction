@@ -33,6 +33,7 @@ import java.util.TreeMap;
  */
 public class TideEventsOrganizer
 {
+	public final static Interval EVENT_SAFETY_MARGIN = new Interval(60);
 
 	private SortedMap<AHTimestamp, TideEvent> map = new TreeMap<>();
 
@@ -53,16 +54,22 @@ public class TideEventsOrganizer
 		return map;
 	}
 
+	/**
+	 * Add a new 'event' to the organizer.
+	 * Here it is checked if there is already an event within the bounds of two EVENT_SAFETY_MARGIN around the event in the organizer.
+	 *  
+	 * @param event
+	 */
 	public void add(TideEvent event)
 	{
-		AHTimestamp ts = event.getEventTime();
+		AHTimestamp ts = event.getTime();
 		AHTimestamp lowTs = new AHTimestamp(ts);
-		lowTs.plusEquals(60 * 1000);
+		lowTs.minusEquals(EVENT_SAFETY_MARGIN);
 		AHTimestamp highTs = new AHTimestamp(ts);
-		highTs.plusEquals(60 * 1000);
+		highTs.plusEquals(EVENT_SAFETY_MARGIN);
 		SortedMap<AHTimestamp, TideEvent> sub = map.subMap(lowTs, highTs);
 		if (sub.size() == 0)
-			map.put(event.getEventTime(), event);
+			map.put(ts, event);
 	}
 
 	public int size()

@@ -1,6 +1,7 @@
-Allgemein
+General usage
  
-- PredServ runs as server-process. After startup it will accept http-requests on port 80. The requests at the moment include station and timespan.
+- PredServ runs as server-process. After startup it will accept http-requests on the given port. 
+  The requests at the moment include station, timespan and mode.
 
 command line options:
 -h[elp]: prints this help to stdout//file
@@ -8,12 +9,20 @@ command line options:
 -p[ort]: port to listen to
 
 
-examples:
-http://localhost:1234/?S=66;H=48;
+Request examples:
+http://localhost:1234/?S=66;H=48;M=Raw
+http://localhost:1234/?S=976;H=72;M=P
 
-S: StatID
-H: hours to predict
+Request params:
+S: StatID (station ID can be found in Stations.lst)
+H: hours to predict from now
+D: days to predict from now
+M: prediction mode 
+   - P[lain] predicts the tide events (min, max, slacks) only
+   - R[aw] predicts the values in five[5] minutes steps
 
 ----
 
 2013-12-30 AH now it looks like git is finally configured well, so commits do work
+
+2013-12-31 AH There are two kinds of stations in the list: level amplitude or current. I don't know why they are not distinguished on top level.

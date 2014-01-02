@@ -28,12 +28,11 @@ import ahdt.tides.base.AHTUnits.AHTidePredictionUnits;
  */
 public class NullablePredictionValue extends AHNullable
 {
-
 	private PredictionValue pv;
 
 	public NullablePredictionValue()
 	{
-
+		this.pv = new PredictionValue();
 	}
 
 	public NullablePredictionValue(PredictionValue value)
@@ -47,19 +46,6 @@ public class NullablePredictionValue extends AHNullable
 		pv.setUnits(units);
 		pv.setValue(value);
 		makeNull(false);
-	}
-
-	NullablePredictionValue(NullablePredictionValue level)
-	{
-		if (level.isNull())
-		{
-			makeNull();
-		}
-		else
-		{
-			pv = new PredictionValue(level);
-			makeNull(false);
-		}
 	}
 
 	public void setValue(double value)
@@ -90,12 +76,6 @@ public class NullablePredictionValue extends AHNullable
 	}
 
 	public PredictionValue minus(PredictionValue subtrahend)
-	{
-		assert ( !isNull());
-		return pv.minus(subtrahend);
-	}
-
-	public PredictionValue minus(NullablePredictionValue subtrahend)
 	{
 		assert ( !isNull());
 		assert ( !subtrahend.isNull());

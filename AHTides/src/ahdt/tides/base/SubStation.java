@@ -222,7 +222,7 @@ public class SubStation extends Station
 			for (TideEvent te : organizer.values())
 			{
 				logger.log(java.util.logging.Level.FINE, String.format(
-						AHTideBaseStr.getString("SubStation.1"), count++ , te.getEventTime().getSeconds(), te.getEventType().toString(), te.getEventLevel().getValue())); //$NON-NLS-1$
+						AHTideBaseStr.getString("SubStation.1"), count++ , te.getTime().getSeconds(), te.getType().toString(), te.getLevel().getValue())); //$NON-NLS-1$
 			}
 
 			while (subleftt.isNull())
@@ -277,14 +277,14 @@ public class SubStation extends Station
 				}
 
 				// Populate the cached bracket.
-				subleftt = new AHTimestamp(organizer.get(left).getEventTime());
-				subleftp = new PredictionValue(organizer.get(left).getEventLevel().asPredictionValue());
-				subrightt = new AHTimestamp(organizer.get(right).getEventTime());
-				subrightp = new PredictionValue(organizer.get(right).getEventLevel().asPredictionValue());
+				subleftt = new AHTimestamp(organizer.get(left).getTime());
+				subleftp = new PredictionValue(organizer.get(left).getLevel());
+				subrightt = new AHTimestamp(organizer.get(right).getTime());
+				subrightp = new PredictionValue(organizer.get(right).getLevel());
 				uncleftt = new AHTimestamp(organizer.get(left).getUncorrectedEventTime());
-				uncleftp = new PredictionValue(organizer.get(left).getUncorrectedEventLevel().asPredictionValue());
+				uncleftp = new PredictionValue(organizer.get(left).getUncorrectedEventLevel());
 				uncrightt = new AHTimestamp(organizer.get(right).getUncorrectedEventTime());
-				uncrightp = new PredictionValue(organizer.get(right).getUncorrectedEventLevel().asPredictionValue());
+				uncrightp = new PredictionValue(organizer.get(right).getUncorrectedEventLevel());
 			}
 			logger.log(java.util.logging.Level.FINE, AHTideBaseStr.getString("SubStation.6") + subleftt.getSeconds()); //$NON-NLS-1$
 			logger.log(java.util.logging.Level.FINE, AHTideBaseStr.getString("SubStation.7") + subleftp.getValue()); //$NON-NLS-1$
@@ -342,127 +342,124 @@ public class SubStation extends Station
 	// failure. In addition, the Calendar constructor requires that
 	// uncorrectedEventTime be null if it is not applicable.
 	@Override
-	protected void finishTideEvent(TideEvent te)
+	protected TideEvent finishTideEvent(TideEvent te)
 	{
-		te.setIsCurrent(m_bIsCurrent);
+		if (m_bIsCurrent)
+			te.makeCurrent();
 		if (te.isSunMoonEvent())
 		{
-			te.getEventLevel().makeNull();
+			te.getLevel().makeNull();
 			te.getUncorrectedEventTime().makeNull();
 			te.getUncorrectedEventLevel().makeNull();
 		}
 		else
 		{
-			switch (te.getEventType())
+			switch (te.getType())
 			{
 			case RAWREADING:
-				te.setEventLevel(new NullablePredictionValue(predictTideLevel(te.getEventTime())));
+				te.setLevel(new PredictionValue(predictTideLevel(te.getTime())));
 				te.getUncorrectedEventTime().makeNull();
 				te.getUncorrectedEventLevel().makeNull();
 				break;
 			case MAX:
-				te.setUncorrectedEventTime(te.getEventTime());
-				te.setEventLevel(new NullablePredictionValue(super.predictTideLevel(te.getEventTime())));
-				te.setUncorrectedEventLevel(te.getEventLevel());
+				te.setUncorrectedEventTime(te.getTime());
+				te.setLevel(new PredictionValue(super.predictTideLevel(te.getTime())));
+				te.setUncorrectedEventLevel(te.getLevel());
 				if (te.isMinCurrentEvent())
 				{
-					// Handling of min currents is questionable; see
-					// http://www.flaterco.com/xtide/mincurrents.html
+					// Handling of min currents is questionable; see http://www.flaterco.com/xtide/mincurrents.html
 					if (m_tHOffs.getEbbBegins().isNull())
 					{
-						te.getEventTime().plusEquals(m_tHOffs.getMinTimeAdd());
+						te.getTime().plusEquals(m_tHOffs.getMinTimeAdd());
 					}
 					else
 					{
-						te.getEventTime().plusEquals(new Interval(m_tHOffs.getEbbBegins()));
+						te.getTime().plusEquals(new Interval(m_tHOffs.getEbbBegins()));
 					}
-					te.getEventLevel().multiply(m_tHOffs.getMinLevelMultiply());
-					te.getEventLevel().convertAndAdd(m_tHOffs.getMinLevelAdd());
+					te.getLevel().multiply(m_tHOffs.getMinLevelMultiply());
+					te.getLevel().convertAndAdd(m_tHOffs.getMinLevelAdd());
 				}
 				else
 				{
-					te.getEventTime().plusEquals(m_tHOffs.getMaxTimeAdd());
-					te.getEventLevel().multiply(m_tHOffs.getMaxLevelMultiply());
-					te.getEventLevel().convertAndAdd(m_tHOffs.getMaxLevelAdd());
+					te.getTime().plusEquals(m_tHOffs.getMaxTimeAdd());
+					te.getLevel().multiply(m_tHOffs.getMaxLevelMultiply());
+					te.getLevel().convertAndAdd(m_tHOffs.getMaxLevelAdd());
 				}
 				logger
 						.log(
 								java.util.logging.Level.FINE,
-								AHTideBaseStr.getString("SubStation.14") + te.getEventTime().getSeconds() + AHTideBaseStr.getString("SubStation.15") + te.getEventLevel().getValue()); //$NON-NLS-1$ //$NON-NLS-2$
+								AHTideBaseStr.getString("SubStation.14") + te.getTime().getSeconds() + AHTideBaseStr.getString("SubStation.15") + te.getLevel().getValue()); //$NON-NLS-1$ //$NON-NLS-2$
 				break;
 			case MIN:
-				te.setUncorrectedEventTime(te.getEventTime());
-				te.setEventLevel(new NullablePredictionValue(super.predictTideLevel(te.getEventTime())));
-				te.setUncorrectedEventLevel(te.getEventLevel());
+				te.setUncorrectedEventTime(te.getTime());
+				te.setLevel(new PredictionValue(super.predictTideLevel(te.getTime())));
+				te.setUncorrectedEventLevel(te.getLevel());
 				if (te.isMinCurrentEvent())
 				{
-					// Handling of min currents is questionable; see
-					// http://www.flaterco.com/xtide/mincurrents.html
+					// Handling of min currents is questionable; see http://www.flaterco.com/xtide/mincurrents.html
 					if (m_tHOffs.getFloodBegins().isNull())
 					{
-						te.getEventTime().plusEquals(m_tHOffs.getMaxTimeAdd());
+						te.getTime().plusEquals(m_tHOffs.getMaxTimeAdd());
 					}
 					else
 					{
-						te.getEventTime().plusEquals(new Interval(m_tHOffs.getFloodBegins()));
+						te.getTime().plusEquals(new Interval(m_tHOffs.getFloodBegins()));
 					}
-					te.getEventLevel().multiply(m_tHOffs.getMaxLevelMultiply());
-					te.getEventLevel().convertAndAdd(m_tHOffs.getMaxLevelAdd());
+					te.getLevel().multiply(m_tHOffs.getMaxLevelMultiply());
+					te.getLevel().convertAndAdd(m_tHOffs.getMaxLevelAdd());
 				}
 				else
 				{
-					te.getEventTime().plusEquals(m_tHOffs.getMinTimeAdd());
-					te.getEventLevel().multiply(m_tHOffs.getMinLevelMultiply());
-					te.getEventLevel().convertAndAdd(m_tHOffs.getMinLevelAdd());
+					te.getTime().plusEquals(m_tHOffs.getMinTimeAdd());
+					te.getLevel().multiply(m_tHOffs.getMinLevelMultiply());
+					te.getLevel().convertAndAdd(m_tHOffs.getMinLevelAdd());
 				}
 				logger
 						.log(
 								java.util.logging.Level.FINE,
-								AHTideBaseStr.getString("SubStation.16") + te.getEventTime().getSeconds() + AHTideBaseStr.getString("SubStation.17") + te.getEventLevel().getValue()); //$NON-NLS-1$ //$NON-NLS-2$
+								AHTideBaseStr.getString("SubStation.16") + te.getTime().getSeconds() + AHTideBaseStr.getString("SubStation.17") + te.getLevel().getValue()); //$NON-NLS-1$ //$NON-NLS-2$
 				break;
 			case SLACKRISE:
 				if (haveFloodBegins())
 				{
-					te.setUncorrectedEventTime(te.getEventTime());
-					te.setEventLevel(new NullablePredictionValue(super.predictTideLevel(te.getEventTime())));
-					te.setUncorrectedEventLevel(te.getEventLevel());
-					te.getEventTime().plusEquals(new Interval(m_tHOffs.getFloodBegins()));
+					te.setUncorrectedEventTime(te.getTime());
+					te.setLevel(new PredictionValue(super.predictTideLevel(te.getTime())));
+					te.setUncorrectedEventLevel(te.getLevel());
+					te.getTime().plusEquals(new Interval(m_tHOffs.getFloodBegins()));
 				}
 				else
 				{
 					te.getUncorrectedEventTime().makeNull();
 					te.getUncorrectedEventLevel().makeNull();
 					// eventTime was fixed in
-					// findInterpolatedSubstationMarkCrossing (so hopefully this
-					// will be zero)
-					te.setEventLevel(new NullablePredictionValue(predictTideLevel(te.getEventTime())));
+					// findInterpolatedSubstationMarkCrossing (so hopefully this will be zero)
+					te.setLevel(new PredictionValue(predictTideLevel(te.getTime())));
 				}
 				logger
 						.log(
 								java.util.logging.Level.FINE,
-								AHTideBaseStr.getString("SubStation.18") + te.getEventTime().getSeconds() + AHTideBaseStr.getString("SubStation.19") + te.getEventLevel().getValue()); //$NON-NLS-1$ //$NON-NLS-2$
+								AHTideBaseStr.getString("SubStation.18") + te.getTime().getSeconds() + AHTideBaseStr.getString("SubStation.19") + te.getLevel().getValue()); //$NON-NLS-1$ //$NON-NLS-2$
 				break;
 			case SLACKFALL:
 				if (haveEbbBegins())
 				{
-					te.setUncorrectedEventTime(te.getEventTime());
-					te.setEventLevel(new NullablePredictionValue(super.predictTideLevel(te.getEventTime())));
-					te.setUncorrectedEventLevel(te.getEventLevel());
-					te.getEventTime().plusEquals(new Interval(m_tHOffs.getEbbBegins()));
+					te.setUncorrectedEventTime(te.getTime());
+					te.setLevel(new PredictionValue(super.predictTideLevel(te.getTime())));
+					te.setUncorrectedEventLevel(te.getLevel());
+					te.getTime().plusEquals(new Interval(m_tHOffs.getEbbBegins()));
 				}
 				else
 				{
 					te.getUncorrectedEventTime().makeNull();
 					te.getUncorrectedEventLevel().makeNull();
 					// eventTime was fixed in
-					// findInterpolatedSubstationMarkCrossing (so hopefully this
-					// will be zero)
-					te.setEventLevel(new NullablePredictionValue(predictTideLevel(te.getEventTime())));
+					// findInterpolatedSubstationMarkCrossing (so hopefully this will be zero)
+					te.setLevel(new PredictionValue(predictTideLevel(te.getTime())));
 				}
 				logger
 						.log(
 								java.util.logging.Level.FINE,
-								AHTideBaseStr.getString("SubStation.20") + te.getEventTime().getSeconds() + AHTideBaseStr.getString("SubStation.21") + te.getEventLevel().getValue()); //$NON-NLS-1$ //$NON-NLS-2$
+								AHTideBaseStr.getString("SubStation.20") + te.getTime().getSeconds() + AHTideBaseStr.getString("SubStation.21") + te.getLevel().getValue()); //$NON-NLS-1$ //$NON-NLS-2$
 				break;
 			case MARKRISE:
 			case MARKFALL:
@@ -470,12 +467,13 @@ public class SubStation extends Station
 				te.getUncorrectedEventLevel().makeNull();
 				// eventTime was fixed in
 				// Station::findInterpolatedSubstationMarkCrossing
-				te.setEventLevel(new NullablePredictionValue(predictTideLevel(te.getEventTime())));
+				te.setLevel(new PredictionValue(predictTideLevel(te.getTime())));
 				break;
 			default:
 				assert (false);
 			}
 		}
+		return te;
 	}
 
 	@Override
@@ -495,7 +493,7 @@ public class SubStation extends Station
 		MarkCrossing returnVal = new MarkCrossing();
 
 		// Toss any brackets in which reverse interpolation will blow up.
-		if (tideEvent2.getEventLevel() != tideEvent1.getEventLevel())
+		if (tideEvent2.getLevel() != tideEvent1.getLevel())
 		{
 
 			// This time we map the pv in and map the time out.
@@ -503,7 +501,7 @@ public class SubStation extends Station
 					tideEvent1.getUncorrectedEventTime(),
 					tideEvent2.getUncorrectedEventTime(),
 					tideEvent1.getUncorrectedEventLevel().plus(tideEvent2.getUncorrectedEventLevel().minus(tideEvent1.getUncorrectedEventLevel()))
-							.times(marklev.minus(tideEvent1.getEventLevel()).divide(tideEvent2.getEventLevel().minus(tideEvent1.getEventLevel()))));
+							.times(marklev.minus(tideEvent1.getLevel()).divide(tideEvent2.getLevel().minus(tideEvent1.getLevel()))));
 			eventTime = mc.getT();
 			returnVal.setRising(mc.isRising());
 
@@ -513,10 +511,10 @@ public class SubStation extends Station
 				// (tideEvent2.eventTime - tideEvent1.eventTime) *
 				// ((eventTime - tideEvent1.uncorrectedEventTime) /
 				// (tideEvent2.uncorrectedEventTime - tideEvent1.uncorrectedEventTime)
-				eventTime = tideEvent1.getEventTime().plus(
+				eventTime = tideEvent1.getTime().plus(
 						tideEvent2
-								.getEventTime()
-								.minus(tideEvent1.getEventTime())
+								.getTime()
+								.minus(tideEvent1.getTime())
 								.multiply(
 										eventTime.minus(tideEvent1.getUncorrectedEventTime()).divide(
 												tideEvent2.getUncorrectedEventTime().minus(tideEvent1.getUncorrectedEventTime()))));
@@ -575,7 +573,7 @@ public class SubStation extends Station
 		for (AHTimestamp it : organizer.subMap(organizer.getLowerBound(startTime), organizer.getLowerBound(endTime)).keySet())
 		{
 			TideEvent te = organizer.get(it);
-			switch (te.getEventType())
+			switch (te.getType())
 			{
 			case MAX:
 			case MIN:
@@ -683,15 +681,15 @@ public class SubStation extends Station
 				// }
 				//
 				if (m_bIsCurrent
-						&& ((leftTe.getEventType() == TideEvent.EventType.MAX && !haveEbbBegins()) || (leftTe.getEventType() == TideEvent.EventType.MIN && !haveFloodBegins())))
+						&& ((leftTe.getType() == TideEvent.EventType.MAX && !haveEbbBegins()) || (leftTe.getType() == TideEvent.EventType.MIN && !haveFloodBegins())))
 				{
 					MarkCrossing mc = findInterpolatedSubstationMarkCrossing(leftTe, rightTe, new PredictionValue(predictUnits(), 0.0));
-					newTE.setEventTime(mc.getT());
-					if (newTE.getEventTime().isNull())
+					newTE.setTime(mc.getT());
+					if (newTE.getTime().isNull())
 					{
-						newTE.setEventType(mc.isRising() ? TideEvent.EventType.SLACKRISE : TideEvent.EventType.SLACKFALL);
+						newTE.setType(mc.isRising() ? TideEvent.EventType.SLACKRISE : TideEvent.EventType.SLACKFALL);
 						finishTideEvent(newTE);
-						if (newTE.getEventTime().gte(startTime) && newTE.getEventTime().lt(endTime))
+						if (newTE.getTime().gte(startTime) && newTE.getTime().lt(endTime))
 						{
 							organizer.add(newTE);
 						}
@@ -726,13 +724,13 @@ public class SubStation extends Station
 			if ( !markLevel.isNull())
 			{
 				MarkCrossing mc = findInterpolatedSubstationMarkCrossing(leftTe, rightTe, new PredictionValue(markLevel));
-				newTE.setEventTime(mc.getT());
-				if ( !newTE.getEventTime().isNull())
+				newTE.setTime(mc.getT());
+				if ( !newTE.getTime().isNull())
 				{
-					newTE.setEventType(mc.isRising() ? TideEvent.EventType.MARKRISE : TideEvent.EventType.MARKFALL);
+					newTE.setType(mc.isRising() ? TideEvent.EventType.MARKRISE : TideEvent.EventType.MARKFALL);
 					finishTideEvent(newTE);
 				}
-				if (newTE.getEventTime().gte(startTime) && newTE.getEventTime().lt(endTime))
+				if (newTE.getTime().gte(startTime) && newTE.getTime().lt(endTime))
 				{
 					organizer.add(newTE);
 				}

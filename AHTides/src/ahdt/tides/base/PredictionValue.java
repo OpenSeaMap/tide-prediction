@@ -19,6 +19,7 @@
 //package net.floogle.jTide;
 package ahdt.tides.base;
 
+import ahdt.std.AHNullable;
 import ahdt.tides.base.AHTUnits.AHTidePredictionUnits;
 
 /**
@@ -30,14 +31,14 @@ import ahdt.tides.base.AHTUnits.AHTidePredictionUnits;
  * 
  * @author chas
  */
-public class PredictionValue
+public class PredictionValue extends AHNullable
 {
-
 	private double value;
 	private AHTidePredictionUnits units;
 
 	public PredictionValue()
 	{
+		this.makeNull(false);
 		// Initialize to 0 Zulu.
 		value = 0;
 		units = AHTidePredictionUnits.ZULU;
@@ -45,12 +46,19 @@ public class PredictionValue
 
 	public PredictionValue(PredictionValue pv)
 	{
+		// Error if null.
+		if (pv.isNull())
+		{
+			throw new UnsupportedOperationException("Attempt to convert null value to PredictionValue");
+		}
+		this.makeNull(false);
 		this.value = pv.getValue();
 		this.units = pv.getUnits();
 	}
 
 	public PredictionValue(AHTidePredictionUnits units, double value)
 	{
+		this.makeNull(false);
 		this.units = units;
 		this.value = value;
 		assert (value == 0.0 || units != AHTidePredictionUnits.ZULU);
@@ -58,19 +66,9 @@ public class PredictionValue
 
 	public PredictionValue(Amplitude a)
 	{
+		this.makeNull(false);
 		this.units = a.getUnits();
 		this.value = a.getValue();
-	}
-
-	public PredictionValue(NullablePredictionValue npv)
-	{
-		// Error if null.
-		if (npv.isNull())
-		{
-			throw new UnsupportedOperationException("Attempt to convert null value to PredictionValue");
-		}
-		this.units = npv.getUnits();
-		this.value = npv.getValue();
 	}
 
 	public boolean equals(PredictionValue pv)
@@ -203,11 +201,6 @@ public class PredictionValue
 
 	public PredictionValue minus(PredictionValue sub)
 	{
-		return new PredictionValue(this.getUnits(), this.getValue() - sub.getValue());
-	}
-
-	public PredictionValue minus(NullablePredictionValue sub)
-	{
 		assert ( !sub.isNull());
 		return new PredictionValue(this.getUnits(), this.getValue() - sub.getValue());
 	}
@@ -234,13 +227,13 @@ public class PredictionValue
 	// Print in the form -XX.YY units (padding as needed)
 	public String print()
 	{
-		throw new UnsupportedOperationException("Not implemented");
+		return String.format("%05.2f %s", value, units.getLongName());
 	}
 
 	// Same thing without padding, with abbreviated units.
 	public String printnp()
 	{
-		return String.format("%.1f %s", value, units);
+		return String.format("%.2f %s", value, units.getShortName());
 	}
 
 	public AHTidePredictionUnits getUnits()
@@ -323,6 +316,14 @@ public class PredictionValue
 
 	public void setValue(double value)
 	{
+		makeNull(false);
 		this.value = value;
 	}
+
+	public void multiply(double value)
+	{
+		assert (!isNull());
+		this.value *= value;
+	}
+
 }
