@@ -23,6 +23,10 @@ package ahdt.tides.base;
  * 
  * @author chas
  */
+/**
+ * @author humbach
+ *
+ */
 public class TideEvent
 {
 
@@ -32,7 +36,7 @@ public class TideEvent
 
 	private AHTimestamp eventTime;
 	private EventType eventType;
-	private NullablePredictionValue eventLevel;
+	private PredictionValue eventLevel;
 	private boolean isCurrent;
 
 	// For sub stations with residual offsets, these record the time and
@@ -41,7 +45,7 @@ public class TideEvent
 	// harmonic constants may still have been adjusted. When not
 	// applicable, these variables remain null.
 	private AHTimestamp uncorrectedEventTime = new AHTimestamp();
-	private NullablePredictionValue uncorrectedEventLevel = new NullablePredictionValue();
+	private PredictionValue uncorrectedEventLevel = new PredictionValue();
 
 	public TideEvent()
 	{
@@ -50,30 +54,59 @@ public class TideEvent
 
 	public TideEvent(TideEvent te)
 	{
-		this.eventTime = te.getEventTime();
-		this.eventType = te.getEventType();
-		this.eventLevel = te.getEventLevel();
+		this.eventTime = te.getTime();
+		this.eventType = te.getType();
+		this.eventLevel = te.getLevel();
 		this.isCurrent = te.isCurrent();
 		this.uncorrectedEventTime = te.getUncorrectedEventTime();
 		this.uncorrectedEventLevel = te.getUncorrectedEventLevel();
 	}
 
-	public AHTimestamp getEventTime()
+	/**
+	 * Creates a TideEvent from AHTimestamp. Assumes a RAWREADING as EventType
+	 * @param tTs
+	 */
+	public TideEvent(AHTimestamp tTs)
+	{
+		this.eventTime = new AHTimestamp(tTs);
+		this.eventType = EventType.RAWREADING;
+		this.eventLevel = new PredictionValue();
+		this.isCurrent = false;
+		this.uncorrectedEventTime = new AHTimestamp();
+		this.uncorrectedEventLevel = new PredictionValue();	  
+	}
+	
+	/**
+	 * Creates a TideEvent from AHTimestamp and EventType
+	 * @param tTs
+	 * @param tType
+	 */
+	public TideEvent(AHTimestamp tTs, EventType tType)
+	{
+		this.eventTime = new AHTimestamp(tTs);
+		this.eventType = tType;
+		this.eventLevel = new PredictionValue();
+		this.isCurrent = false;
+		this.uncorrectedEventTime = new AHTimestamp();
+		this.uncorrectedEventLevel = new PredictionValue();
+	}
+
+	public AHTimestamp getTime()
 	{
 		return eventTime;
 	}
 
-	public void setEventTime(AHTimestamp t)
+	public void setTime(AHTimestamp t)
 	{
 		this.eventTime = t;
 	}
 
-	public EventType getEventType()
+	public EventType getType()
 	{
 		return eventType;
 	}
 
-	public void setEventType(EventType type)
+	public void setType(EventType type)
 	{
 		this.eventType = type;
 	}
@@ -83,29 +116,32 @@ public class TideEvent
 		return isCurrent;
 	}
 
-	public void setIsCurrent(boolean isCurrent)
+	/**
+	 * Changes the type of this event to CURRENT
+	 */
+	public void makeCurrent()
 	{
-		this.isCurrent = isCurrent;
+		this.isCurrent = true;
 	}
 
-	public NullablePredictionValue getEventLevel()
+	public PredictionValue getLevel()
 	{
 		return eventLevel;
 	}
 
-	public void setEventLevel(NullablePredictionValue eventLevel)
+	public void setLevel(PredictionValue predictionValue)
 	{
-		this.eventLevel = eventLevel;
+		this.eventLevel = predictionValue;
 	}
 
-	public NullablePredictionValue getUncorrectedEventLevel()
+	public PredictionValue getUncorrectedEventLevel()
 	{
 		return uncorrectedEventLevel;
 	}
 
-	public void setUncorrectedEventLevel(NullablePredictionValue level)
+	public void setUncorrectedEventLevel(PredictionValue level)
 	{
-		uncorrectedEventLevel = new NullablePredictionValue(level);
+		uncorrectedEventLevel = new PredictionValue(level);
 	}
 
 	public AHTimestamp getUncorrectedEventTime()
@@ -118,21 +154,29 @@ public class TideEvent
 		uncorrectedEventTime = new AHTimestamp(eventTime);
 	}
 
-	// Generate one line of text output, applying global formatting
-	// rules and so on.
-	// Legal forms are c (CSV), t (text) or i (iCalendar).
-	// Legal modes are p (plain), r (raw), or m (medium rare).
-	// text_out is not newline terminated.
-	//
-	// print needs timezone and sometimes name and coordinates from station.
-	public String print(Constants.Mode mode, Constants.Format form, Station station)
+	/**
+	 * Generate one line of text output, applying global formatting rules and so on.
+	 * Legal forms are CSV, TEXT.
+	 * Legal modes are PLAIN, RAW.
+	 * text_out is not newline terminated.
+	 * 
+	 * print needs timezone and sometimes name and coordinates from station.
+	 * 
+	 * @param mode
+	 * @param form
+	 * @param station
+	 * @return
+	 */
+	public String print(Constants.Mode mode, Constants.Format form)
 	{
-		String strTxtOut = AHTideBaseStr.getString("AHTides.Empty"); //$NON-NLS-1$
-		String levelPrint = AHTideBaseStr.getString("AHTides.Empty"); //$NON-NLS-1$
-		String timePrint = AHTideBaseStr.getString("AHTides.Empty"); //$NON-NLS-1$
+		String strTxtOut = AHTideBaseStr.getString("AHTides.Empty");
+		String levelPrint = AHTideBaseStr.getString("AHTides.Empty");
+		String timePrint = AHTideBaseStr.getString("AHTides.Empty");
 		switch (mode)
 		{
 		case PLAIN:
+		case RAW:
+		default:
 			switch (form)
 			{
 			case CSV:
@@ -140,40 +184,31 @@ public class TideEvent
 				{
 					levelPrint = eventLevel.printnp();
 				}
-				strTxtOut = station.m_strName;
-				strTxtOut.replace(',', Global.CSV_REPCHAR);
-				strTxtOut += AHTideBaseStr.getString("TideEvent.CSVSep"); //$NON-NLS-1$
-				strTxtOut += eventTime.printableDate(station.getTimeZone());
-				// text_out += ',';
-				// textOut += eventTime.printableTime(station.getTimeZone());
-				strTxtOut += AHTideBaseStr.getString("TideEvent.CSVSep"); //$NON-NLS-1$
-				strTxtOut += levelPrint;
-				strTxtOut += AHTideBaseStr.getString("TideEvent.CSVSep"); //$NON-NLS-1$
+				// station name goes to the Station.print() method instead of every line
+//				strTxtOut = station.m_strName;
+//				strTxtOut.replace(',', Global.CSV_REPCHAR);
+//				strTxtOut += AHTideBaseStr.getString("TideEvent.CSVSep");
+				strTxtOut += eventTime.printTime() + AHTideBaseStr.getString("TideEvent.CSVSep");
+				strTxtOut += levelPrint + AHTideBaseStr.getString("TideEvent.CSVSep");
 				String mangle = longDescription();
 				mangle.replace(',', Global.CSV_REPCHAR);
 				strTxtOut += mangle;
-				return strTxtOut;
+				break;
 			case TEXT:
+			default:
 				if ( !isSunMoonEvent())
 				{
 					levelPrint = eventLevel.printnp();
 				}
-				strTxtOut = station.m_strName;
-				strTxtOut += AHTideBaseStr.getString("TideEvent.TXTSep"); //$NON-NLS-1$
-				strTxtOut += eventTime.printableDate(station.getTimeZone());
-				// text_out += ',';
-				// textOut += eventTime.printableTime(station.getTimeZone());
-				strTxtOut += AHTideBaseStr.getString("TideEvent.TXTSep"); //$NON-NLS-1$
-				strTxtOut += levelPrint;
-				strTxtOut += AHTideBaseStr.getString("TideEvent.TXTSep"); //$NON-NLS-1$
+				// station name goes to the Station.print() method instead of every line
+//				strTxtOut = station.m_strName;
+//				strTxtOut += AHTideBaseStr.getString("TideEvent.TXTSep");
+				strTxtOut += eventTime.printTime() + AHTideBaseStr.getString("TideEvent.TXTSep");
+				strTxtOut += levelPrint + AHTideBaseStr.getString("TideEvent.TXTSep");
 				strTxtOut += longDescription();
-				return strTxtOut;
-			default:
-				assert (false);
+				break;
 			}
-
-		default:
-			assert (false);
+			break;
 		}
 		return strTxtOut;
 	}

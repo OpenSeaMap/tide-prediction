@@ -1,5 +1,7 @@
 package ahdt.tides.base;
 
+import ahdt.tides.base.Constants.Mode;
+
 public class AHTideJob
 {
 	private int m_nStatID;
@@ -7,6 +9,7 @@ public class AHTideJob
 	private AHTimestamp m_tStart;
 	private AHTimestamp m_nEnd;
 	private String m_strStatName;
+	private Mode m_Mode;
 
 	public AHTideJob()
 	{
@@ -91,6 +94,22 @@ public class AHTideJob
 	public void setStatName(String m_strStatName)
 	{
 		this.m_strStatName = m_strStatName;
+	}
+
+	/**
+	 * @return the Mode
+	 */
+	public Mode getMode()
+	{
+		return m_Mode;
+	}
+
+	/**
+	 * @param m_Mode the Mode to set
+	 */
+	public void setMode(Mode m_Mode)
+	{
+		this.m_Mode = m_Mode;
 	}
 
 }

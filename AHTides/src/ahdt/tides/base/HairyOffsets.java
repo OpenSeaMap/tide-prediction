@@ -25,7 +25,6 @@ package ahdt.tides.base;
  */
 public class HairyOffsets
 {
-
 	private SimpleOffsets m_tMaxSO;
 	private SimpleOffsets m_tMinSO;
 	NullableInterval floodBegins;

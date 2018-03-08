@@ -93,7 +93,7 @@ public class Constituent
 			details += firstValidYear.getYear();
 			details += AHTideBaseStr.getString("Constituent.7"); //$NON-NLS-1$
 			details += lastValidYear.getYear();
-			details += AHTideBaseStr.getString("Constituent.8"); //$NON-NLS-1$
+			details += AHTideBaseStr.getString("AHTides.NewLine"); //$NON-NLS-1$
 			details += AHTideBaseStr.getString("Constituent.9"); //$NON-NLS-1$
 			details += year.getYear();
 			details += AHTideBaseStr.getString("Constituent.10"); //$NON-NLS-1$

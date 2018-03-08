@@ -6,6 +6,7 @@ import java.util.regex.Pattern;
 
 import ahdt.tides.base.AHTideJob;
 import ahdt.tides.base.AHTimestamp;
+import ahdt.tides.base.Constants.Mode;
 import ahdt.tides.base.Interval;
 
 /**
@@ -19,6 +20,7 @@ import ahdt.tides.base.Interval;
  * E[nd]=DATE; - end of prediction interval
  * H[ours]=NN; - timespan in hours to be predicted
  * D[ays]=NN; - timespan in days to be predicted
+ * M[ode]=R[aw] or P[lain] - prediction mode
  * 
  * these verbs are delimited by a single ; char and can appear in any sequence. 
  * esp. is a semicolon necessary after the last verb
@@ -26,6 +28,7 @@ import ahdt.tides.base.Interval;
  * 
  * 20130220 AH at the moment exactly one mode and format are implemented:
  * PLAIN mode and TEXT format
+ * 20131231 AH added RAW mode
  * 
  * @author humbach
  *
@@ -81,8 +84,10 @@ public class AHPredProto
 		if (m_eState == eProtoState.WAITING)
 		{
 			int nVal = 1;
+			String strTxt;
 			AHTimestamp tStart = AHTimestamp.now();
 			AHTimestamp tEnd = AHTimestamp.now().plus(new Interval(3600 * 48));
+			// test for numeric params
 			Pattern tPat = Pattern.compile("[BDEHNS]=\\d+");
 			Matcher tMatch = tPat.matcher(strInput);
 			while (tMatch.find())
@@ -109,6 +114,35 @@ public class AHPredProto
 					tEnd = AHTimestamp.now().plus(new Interval(3600 * nVal));
 				if (strInput.charAt(tMatch.start()) == 'D')
 					tEnd = AHTimestamp.now().plus(new Interval(3600 * 24 * nVal));
+			}
+			// test for text params
+			tPat = Pattern.compile("[M]=\\w+");
+			tMatch = tPat.matcher(strInput);
+			while (tMatch.find())
+			{
+				String strIn1 = strInput.substring(tMatch.start());
+				Scanner tScan = new Scanner(strIn1).useDelimiter("[;=?/ ]");
+				System.out.println("Match: " + strIn1);
+				while (tScan.hasNext())
+				{
+					if (tScan.hasNext(Pattern.compile("R(aw)?")))
+					{
+						strTxt = tScan.next();
+						System.out.println("raw: " + strTxt);
+						tJob.setMode(Mode.RAW);
+						break;
+					}
+					if (tScan.hasNext(Pattern.compile("P(lain)?")))
+					{
+						strTxt = tScan.next();
+						System.out.println("plain: " + strTxt);
+						tJob.setMode(Mode.PLAIN);
+						break;
+					}
+					else
+						System.out.println("n: " + tScan.next());
+				}
+				tScan.close();				
 			}
 
 			System.out.println(tEnd.printableDate(null));

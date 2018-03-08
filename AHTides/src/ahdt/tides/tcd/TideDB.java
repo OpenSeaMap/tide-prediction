@@ -34,6 +34,8 @@ import java.util.logging.Logger;
 
 import ahdt.tides.base.AHTUnits;
 import ahdt.tides.base.AHTUnits.AHTidePredictionUnits;
+import ahdt.tides.base.AHTideBaseStr;
+import ahdt.tides.base.Coordinates;
 import ahdt.tides.base.CurrentBearing;
 import ahdt.tides.base.HairyOffsets;
 import ahdt.tides.base.Interval;
@@ -212,10 +214,10 @@ public class TideDB
 	 *****************************************************************************/
 
 	transient private Logger logger = Logger.getLogger(this.getClass().getName());
-	private String fileName;
+//	private String fileName;
 	// private List<TideIndex> tindex = new LinkedList<>(); 201302 AH index discarded
 
-	private int currentRecord = 0;
+//	private int currentRecord = 0;
 	private XByteBuffer buffer;
 
 	private TideDBHeader header;
@@ -248,7 +250,7 @@ public class TideDB
 	{
 		// read file into buffer
 		FileInputStream input = null;
-		this.fileName = fileName;
+//		this.fileName = fileName;
 		input = new FileInputStream(fileName);
 		FileChannel channel = input.getChannel();
 		int fileLength = (int) channel.size();
@@ -271,8 +273,9 @@ public class TideDB
 	}
 
 	/**
-	 * For fields in the tide record that are indices into tables of character string values, these functions are used to retrieve the character string value
-	 * corresponding to a particular index. The value "Unknown" is returned when no translation exists. The return value is a pointer into static memory.
+	 * For fields in the tide record that are indices into tables of character string values, 
+	 * these functions are used to retrieve the character string value corresponding to a particular index. 
+	 * The value "Unknown" is returned when no translation exists.
 	 * 
 	 * @param num
 	 * @return
@@ -339,18 +342,18 @@ public class TideDB
 				if (tRec.getRecordType() == EStatType.REFERENCE_STATION)
 				{
 					tStat = new RefStation(tRec);
-					// Load the station with the data from the TideRecord.
-//					tStat.loadStation(tRec);
+					// Fill the station with the data from the TideRecord.
 					fillStation(tStat, tRec);
-					fillRefStation(tStat, tRec);
+					fillRefStation((RefStation)tStat, tRec);
 				}
 				else if (tRec.getRecordType() == EStatType.SUBORDINATE_STATION)
 				{
-					tStat = new SubStation(tRec);
-					// Load the station with the data from the TideRecord.
-					//tStat.loadStation(tRec);
+					TideRecord tRefRec = getRecord(tRec.getReferenceStation());
+
+					tStat = new SubStation(tRec, tRefRec);
+					// Fill the station with the data from the TideRecord.
 					fillStation(tStat, tRec);
-					fillSubStation(tStat, tRec);
+					fillSubStation((SubStation)tStat, tRec);
 				}
 			}
 			catch (StationException e)
@@ -362,52 +365,66 @@ public class TideDB
 	}
 
 	/**
-	 * fills the station object with the data from the given tRec
+	 * Fills the station object with the data from the TideRecord.
+	 * These are the data common for all types of stations
 	 * 
 	 * @param tRec
-	 *          record in TideDB
-	 * @param tStat
-	 *          Station object to be filled
 	 */
-	public void fillStation(Station tStat, TideRecord tRec) throws StationException
+	public void fillStation(Station tStat, TideRecord tRec)
 	{
-		// Fill the remaining data of the station.
-		boolean isDegreesTrue = !(findDirUnits(AHTideTCDStr.getString("TideDB.0")) == tRec.getDirection_units()); //$NON-NLS-1$
-		if (tRec.getMinDirection() >= 0 && tRec.getMinDirection() < 360)
-			tStat.setMinCurrentBearing(new CurrentBearing(tRec.getMinDirection(), isDegreesTrue));
-		else
-			tStat.setMinCurrentBearing(new CurrentBearing());
-		if (tRec.getMaxDirection() >= 0 && tRec.getMaxDirection() < 360)
-			tStat.setMaxCurrentBearing(new CurrentBearing(tRec.getMaxDirection(), isDegreesTrue));
-		else
-			tStat.setMaxCurrentBearing(new CurrentBearing());
-	}
+		tStat.setNotes(tRec.getNotes());
+		tStat.setCoordinates(new Coordinates(tRec.getLat(), tRec.getLon()));
+		tStat.setTimeZone(AHTideBaseStr.getString("AHTides.Empty"));
+		tStat.setAspect(0);
+		String strName = tRec.getName();
+		if (tRec.getLegalese() != 0)
+		{
+			strName += AHTideBaseStr.getString("Station.1");
+			strName += (char) tRec.getLegalese();
+		}
+		tStat.setName(strName);
+		tStat.setMinCurrentBearing(new CurrentBearing(tRec.getMinDirection()));
+		tStat.setMaxCurrentBearing(new CurrentBearing(tRec.getMaxDirection()));
+		}
+
+	// private Station(String name, StationRef stationRef, ConstituentSet
+	// constituents, String note, CurrentBearing minCurrentBearing,
+	// CurrentBearing maxCurrentBearing, Deque<MetaField> metaData)
+	// {
+	// this.m_strName = name;
+	// this.timeZone = stationRef.getTimeZone();
+	// this.minCurrentBearing = minCurrentBearing;
+	// this.maxCurrentBearing = maxCurrentBearing;
+	// this.note = note;
+	// this.isCurrent = AHTUnits.isCurrent(constituents.getPredictUnits());
+	// this.aspect = 0; // TODO: fix this
+	// this.step = new Interval();
+	// this.stationRef = stationRef;
+	// this.constituents = constituents;
+	// this.metadata = metaData;
+	//
+	// }
 
 	/**
-	 * fills the station object with the data from the given tRec
+	 * fills the station object with the substation data from the given tRec
 	 * 
 	 * @param tRec
 	 *          record in TideDB
 	 * @param tStat
 	 *          Station object to be filled
 	 */
-	public void fillSubStation(Station tStat, TideRecord tRec) throws StationException
+	public void fillSubStation(SubStation tStat, TideRecord tRec) throws StationException
 	{
 		TideRecord tRefRec;
 		assert (tRec.getReferenceStation() >= 0);
 		tRefRec = getRecord(tRec.getReferenceStation());
 		AHTidePredictionUnits refStationNativeUnits = AHTUnits.parse(getLevelUnits(tRefRec.getLevelUnits()));
-		boolean isDegreesTrue = !(findDirUnits(AHTideTCDStr.getString("TideDB.0")) == tRec.getDirection_units()); //$NON-NLS-1$
-		if (tRec.getMinDirection() >= 0 && tRec.getMinDirection() < 360)
-			tStat.setMinCurrentBearing(new CurrentBearing(tRec.getMinDirection(), isDegreesTrue));
-		else
-			tStat.setMinCurrentBearing(new CurrentBearing());
-		if (tRec.getMaxDirection() >= 0 && tRec.getMaxDirection() < 360)
-			tStat.setMaxCurrentBearing(new CurrentBearing(tRec.getMaxDirection(), isDegreesTrue));
-		else
-			tStat.setMaxCurrentBearing(new CurrentBearing());
+		tStat.setMinCurrentBearing(new CurrentBearing(tRefRec.getMinDirection()));
+		tStat.setMaxCurrentBearing(new CurrentBearing(tRefRec.getMaxDirection()));
+		
 		Deque<MetaField> metadata = new ArrayDeque<>();
 		buildMetadata(tStat, metadata, tRec, refStationNativeUnits, tStat.getMinCurrentBearing(), tStat.getMaxCurrentBearing());
+		tStat.setMetadata(metadata);
 
 		NullableInterval tempFloodBegins = new NullableInterval(), tempEbbBegins = new NullableInterval();
 
@@ -422,37 +439,38 @@ public class TideDB
 				tRec.getMaxLevelMultiply()), new SimpleOffsets(new Interval(getTimeNeatStr(tRec.getMinTimeAdd())), new PredictionValue(lu, tRec.getMinLevelAdd()),
 				tRec.getMinLevelMultiply()), tempFloodBegins, tempEbbBegins);
 
-		((SubStation)tStat).ApplyHairyOffsets(ho);
+		tStat.ApplyHairyOffsets(ho);
 
-		// If the offsets can be reduced to simple, then we can adjust
-		// the constituents and be done with it. However, in the case
-		// of hydraulic currents, level multipliers cannot be treated as
-		// simple and applied to the constants because of the square
-		// root operation--i.e., it's nonlinear.
-
-		tStat.setMetadata(metadata);
-
-		/*
-		 * SimpleOffsets so = new SimpleOffsets(); //if (( !AHTUnits.isHydraulicCurrent(refStationNativeUnits) || ho.getMaxLevelMultiply() == 1.0) &&
-		 * ho.trySimplify(so)) if (( !AHTUnits.isHydraulicCurrent(refStationNativeUnits) || ho.getMaxLevelMultiply() == 1.0) && ho.trySimplify(so))
-		 * tStat.setOffsets(so); else // Cannot simplify.
-		 */
-		((SubStation)tStat).setOffsets(ho);
+		// If the offsets can be reduced to simple, then we can adjust the constituents and be done with it. 
+		// However, in the case of hydraulic currents, level multipliers cannot be treated as simple and applied to the constants 
+		// because of the square root operation--i.e., it's nonlinear.		
+		 SimpleOffsets so = new SimpleOffsets(); 
+		 if (( !AHTUnits.isHydraulicCurrent(refStationNativeUnits) || ho.getMaxLevelMultiply() == 1.0) &&	ho.trySimplify(so)) 
+			 tStat.setConst(tRefRec.getConstituents(so));
+		 else	 
+		 {
+			 tStat.setConst(tRefRec.getConstituents(so));
+		 }
+		
 	}
 
 	/**
-	 * fills the station object with the data from the given tRec
+	 * fills the RefStation object with the data from the given tRec
 	 * 
 	 * @param tRec
 	 *          record in TideDB
 	 * @param tStat
 	 *          Station object to be filled
 	 */
-	public void fillRefStation(Station tStat, TideRecord tRec) throws StationException
+	public void fillRefStation(RefStation tStat, TideRecord tRec) throws StationException
 	{
+		// Fill the remaining data of the station.
+		tStat.setMinCurrentBearing(new CurrentBearing(tRec.getMinDirection()));
+		tStat.setMaxCurrentBearing(new CurrentBearing(tRec.getMaxDirection()));
 		Deque<MetaField> metadata = new ArrayDeque<>();
 		buildMetadata(tStat, metadata, tRec, AHTUnits.parse(getLevelUnits(tRec.getLevelUnits())), tStat.getMinCurrentBearing(), tStat.getMaxCurrentBearing());
 		tStat.setMetadata(metadata);
+		tStat.setConst(tRec.getConstituents(new SimpleOffsets()));
 	}
 
 	/**
@@ -752,7 +770,7 @@ public class TideDB
 		{
 			metadata.push(new MetaField(AHTideTCDStr.getString("TideDB.30"), tRec.getComments())); //$NON-NLS-1$
 		}
-		if (!tRec.getNotes().equals(AHTideTCDStr.getString("TideDB.31"))) //$NON-NLS-1$
+		if (!tRec.getNotes().equals(AHTideTCDStr.getString("TideDB.Empty"))) //$NON-NLS-1$
 		{
 			metadata.push(new MetaField(AHTideTCDStr.getString("TideDB.32"), tRec.getNotes())); //$NON-NLS-1$
 		}
@@ -779,7 +797,7 @@ public class TideDB
 			{
 				metadata.push(new MetaField(AHTideTCDStr.getString("TideDB.42"), getDateStr(tRec.getExpirationDate()))); //$NON-NLS-1$
 			}
-			metadata.push(new MetaField(AHTideTCDStr.getString("TideDB.43"), String.format(AHTideTCDStr.getString("TideDB.44"), tRec.getConfidence()))); //$NON-NLS-1$ //$NON-NLS-2$
+			metadata.push(new MetaField(AHTideTCDStr.getString("TideDB.43"), String.format(AHTideTCDStr.getString("TideDB.40"), tRec.getConfidence()))); //$NON-NLS-1$ //$NON-NLS-2$
 			break;
 
 		case SUBORDINATE_STATION:
@@ -824,7 +842,7 @@ public class TideDB
 				{
 					name = linebuf;
 					name = name.substring(0, i);
-					value = String.format(AHTideTCDStr.getString("TideDB.50"), (i + 1)); //$NON-NLS-1$
+					value = String.format(AHTideTCDStr.getString("TideDB.40"), (i + 1)); //$NON-NLS-1$
 				}
 			}
 		}
@@ -838,27 +856,27 @@ public class TideDB
 		AHTidePredictionUnits lu = levelAddUnits(rec);
 
 		metadata.push(new MetaField(
-				AHTideTCDStr.getString("TideDB.51"), rec.getMinTimeAdd() != 0 ? TideDB.getTimeNeatStr(rec.getMinTimeAdd()) : AHTideTCDStr.getString("TideDB.52"))); //$NON-NLS-1$ //$NON-NLS-2$
+				AHTideTCDStr.getString("TideDB.51"), rec.getMinTimeAdd() != 0 ? TideDB.getTimeNeatStr(rec.getMinTimeAdd()) : AHTideTCDStr.getString("TideDB.NULL"))); //$NON-NLS-1$ //$NON-NLS-2$
 		tmp = String.format(AHTideTCDStr.getString("TideDB.53"), rec.getMinLevelAdd(), lu.getShortName()); //$NON-NLS-1$
-		metadata.push(new MetaField(AHTideTCDStr.getString("TideDB.54"), rec.getMinLevelAdd() != 0 ? tmp : AHTideTCDStr.getString("TideDB.55"))); //$NON-NLS-1$ //$NON-NLS-2$
+		metadata.push(new MetaField(AHTideTCDStr.getString("TideDB.54"), rec.getMinLevelAdd() != 0 ? tmp : AHTideTCDStr.getString("TideDB.NULL"))); //$NON-NLS-1$ //$NON-NLS-2$
 		tmp = String.format(AHTideTCDStr.getString("TideDB.56"), rec.getMinLevelMultiply()); //$NON-NLS-1$
-		metadata.push(new MetaField(AHTideTCDStr.getString("TideDB.57"), rec.getMinLevelMultiply() > 0.0 ? tmp : AHTideTCDStr.getString("TideDB.58"))); //$NON-NLS-1$ //$NON-NLS-2$
+		metadata.push(new MetaField(AHTideTCDStr.getString("TideDB.57"), rec.getMinLevelMultiply() > 0.0 ? tmp : AHTideTCDStr.getString("TideDB.NULL"))); //$NON-NLS-1$ //$NON-NLS-2$
 
 		metadata.push(new MetaField(
-				AHTideTCDStr.getString("TideDB.59"), rec.getMaxTimeAdd() != 0 ? TideDB.getTimeNeatStr(rec.getMaxTimeAdd()) : AHTideTCDStr.getString("TideDB.60"))); //$NON-NLS-1$ //$NON-NLS-2$
-		tmp = String.format(AHTideTCDStr.getString("TideDB.61"), rec.getMaxLevelAdd(), lu.getShortName()); //$NON-NLS-1$
-		metadata.push(new MetaField(AHTideTCDStr.getString("TideDB.62"), rec.getMaxLevelAdd() != 0 ? tmp : AHTideTCDStr.getString("TideDB.63"))); //$NON-NLS-1$ //$NON-NLS-2$
-		tmp = String.format(AHTideTCDStr.getString("TideDB.64"), rec.getMaxLevelMultiply()); //$NON-NLS-1$
-		metadata.push(new MetaField(AHTideTCDStr.getString("TideDB.65"), rec.getMaxLevelMultiply() > 0.0 ? tmp : AHTideTCDStr.getString("TideDB.66"))); //$NON-NLS-1$ //$NON-NLS-2$
+				AHTideTCDStr.getString("TideDB.59"), rec.getMaxTimeAdd() != 0 ? TideDB.getTimeNeatStr(rec.getMaxTimeAdd()) : AHTideTCDStr.getString("TideDB.NULL"))); //$NON-NLS-1$ //$NON-NLS-2$
+		tmp = String.format(AHTideTCDStr.getString("TideDB.53"), rec.getMaxLevelAdd(), lu.getShortName()); //$NON-NLS-1$
+		metadata.push(new MetaField(AHTideTCDStr.getString("TideDB.62"), rec.getMaxLevelAdd() != 0 ? tmp : AHTideTCDStr.getString("TideDB.NULL"))); //$NON-NLS-1$ //$NON-NLS-2$
+		tmp = String.format(AHTideTCDStr.getString("TideDB.56"), rec.getMaxLevelMultiply()); //$NON-NLS-1$
+		metadata.push(new MetaField(AHTideTCDStr.getString("TideDB.65"), rec.getMaxLevelMultiply() > 0.0 ? tmp : AHTideTCDStr.getString("TideDB.NULL"))); //$NON-NLS-1$ //$NON-NLS-2$
 
 		if (AHTUnits.isCurrent(lu))
 		{
 			metadata
 					.push(new MetaField(
-							AHTideTCDStr.getString("TideDB.67"), rec.getFloodBegins() == TideDB.NULL_SLACK_OFFSET ? AHTideTCDStr.getString("TideDB.68") : TideDB.getTimeNeatStr(rec.getFloodBegins()))); //$NON-NLS-1$ //$NON-NLS-2$
+							AHTideTCDStr.getString("TideDB.67"), rec.getFloodBegins() == TideDB.NULL_SLACK_OFFSET ? AHTideTCDStr.getString("TideDB.NULL") : TideDB.getTimeNeatStr(rec.getFloodBegins()))); //$NON-NLS-1$ //$NON-NLS-2$
 			metadata
 					.push(new MetaField(
-							AHTideTCDStr.getString("TideDB.69"), rec.getEbbBegins() == TideDB.NULL_SLACK_OFFSET ? AHTideTCDStr.getString("TideDB.70") : TideDB.getTimeNeatStr(rec.getEbbBegins()))); //$NON-NLS-1$ //$NON-NLS-2$
+							AHTideTCDStr.getString("TideDB.69"), rec.getEbbBegins() == TideDB.NULL_SLACK_OFFSET ? AHTideTCDStr.getString("TideDB.NULL") : TideDB.getTimeNeatStr(rec.getEbbBegins()))); //$NON-NLS-1$ //$NON-NLS-2$
 		}
 	}
 
@@ -866,7 +884,7 @@ public class TideDB
 	// knots not knots^2. The database can specify either knots or
 	// knots^2 in the sub station record, but there is only one sensible
 	// interpretation.
-	private AHTidePredictionUnits levelAddUnits(TideRecord rec)
+	public AHTidePredictionUnits levelAddUnits(TideRecord rec)
 	{
 		return AHTUnits.flatten(AHTUnits.parse(getLevelUnits(rec.getLevelUnits())));
 	}

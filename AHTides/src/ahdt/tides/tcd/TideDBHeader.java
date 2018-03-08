@@ -108,7 +108,7 @@ public final class TideDBHeader
 	private long pedigreeSize;
 
 	private XByteBuffer buffer;
-	private List<TideIndex> tindex;
+//	private List<TideIndex> tindex;
 
 	/**
 	 * TideHeaderData reads first the plain text header part of the tcd file and then fills the index list with selected data of the records.
@@ -120,12 +120,12 @@ public final class TideDBHeader
 	public TideDBHeader(XByteBuffer buffer) throws TideDBException
 	{
 		this.buffer = buffer;
-		this.tindex = tindex;
+//		this.tindex = tindex;
 
 		pub = new DbHeaderPublic();
 		pub.setVersion(AHTideTCDStr.getString("TideDBHeader.0"));
 		String read;
-		int info = 0;
+//		int info = 0;
 		do
 		{
 			read = buffer.getStringTo('\n');
@@ -141,7 +141,7 @@ public final class TideDBHeader
 			{
 				throw new TideDBException(AHTideTCDStr.getString("TideDBHeader.3") + read); //$NON-NLS-1$
 			}
-			++info;
+//			++info;
 			switch (parts[0].trim())
 			{
 			case "[VERSION]": //$NON-NLS-1$

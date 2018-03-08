@@ -5,7 +5,7 @@ import java.util.ResourceBundle;
 
 public class AHTideBaseStr
 {
-	private static final String BUNDLE_NAME = "ahdt.tides.base.AHTideBaseStr"; //$NON-NLS-1$
+	private static final String BUNDLE_NAME = "ahdt.tides.base.AHTideBaseStr";
 
 	private static final ResourceBundle RESOURCE_BUNDLE = ResourceBundle.getBundle(BUNDLE_NAME);
 

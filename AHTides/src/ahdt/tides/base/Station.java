@@ -19,19 +19,26 @@
 //package net.floogle.jTide;
 package ahdt.tides.base;
 
+import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.logging.Logger;
 
 import ahdt.tides.base.AHTUnits.AHTidePredictionUnits;
+import ahdt.tides.base.Constants.Format;
+import ahdt.tides.base.Constants.Mode;
+import ahdt.tides.tcd.AHTideTCDStr;
+import ahdt.tides.tcd.TideDB;
 import ahdt.tides.tcd.TideRecord;
 import ahdt.tides.tcd.TideRecord.EStatType;
 
 /**
  * A Station is the object enabling calculations and predictions.
  * 
- * Station has the subclasses RefStation and SubStation. The superclass is used for reference stations and that rare subordinate station where the offsets can be reduced to simple
- * corrections to the constituents and datum. After such corrections are made, there is no operational difference between that and a reference station.
+ * Station has the subclasses RefStation and SubStation. 
  * 
+ * The superclass is used for reference stations and that rare subordinate station where the offsets can be reduced to simple
+ * corrections to the constituents and datum. After such corrections are made, there is no operational difference between that 
+ * and a reference station.
  * 
  * @author humbach
  * 
@@ -55,7 +62,7 @@ public class Station implements Cloneable
 	// transfer with it is copied. Clients *are* entitled to
 	// modify these values. NOTE: markLevel must be specified in
 	// predictUnit() units.
-	protected NullablePredictionValue markLevel = new NullablePredictionValue();
+	protected PredictionValue markLevel = new PredictionValue();
 	protected double aspect;
 	protected Interval step;
 
@@ -73,62 +80,16 @@ public class Station implements Cloneable
 	// least negative.
 
 	/**
-	 * @param constructs
-	 *          a station from a TideDB record
+	 * constructs a station from a TideDB record
+	 * 
+	 * @param tRec is the TideRecord whose data are to be loaded into the station object
 	 */
 	public Station(TideRecord tRec)
 	{
 		m_ID = tRec.getID();
 		step = new Interval();
-		loadStation(tRec);
 	}
-
-	/**
-	 * Load the station with the data from the TideRecord.
-	 * 
-	 * @param tRec
-	 */
-	public void loadStation(TideRecord tRec)
-	{
-		m_strNotes = tRec.getNotes();
-		m_Coordinates = new Coordinates(tRec.getLat(), tRec.getLon());
-		m_TimeZone = AHTideBaseStr.getString("Station.0"); //$NON-NLS-1$
-		String strName = tRec.getName();
-		if (tRec.getLegalese() != 0)
-		{
-			strName += AHTideBaseStr.getString("Station.1"); //$NON-NLS-1$
-			strName += /* get_legalese(rec.legalese) */(char) tRec.getLegalese();
-		}
-		m_strName = strName;
-	}
-
-	// private Station(String name, StationRef stationRef, ConstituentSet
-	// constituents, String note, CurrentBearing minCurrentBearing,
-	// CurrentBearing maxCurrentBearing, Deque<MetaField> metaData)
-	// {
-	// this.m_strName = name;
-	// this.timeZone = stationRef.getTimeZone();
-	// this.minCurrentBearing = minCurrentBearing;
-	// this.maxCurrentBearing = maxCurrentBearing;
-	// this.note = note;
-	// this.isCurrent = AHTUnits.isCurrent(constituents.getPredictUnits());
-	// this.aspect = 0; // TODO: fix this
-	// this.step = new Interval();
-	// this.stationRef = stationRef;
-	// this.constituents = constituents;
-	// this.metadata = metaData;
-	//
-	// }
-
-	/**
-	 * This method is only used when applying settings from the control panel, and then only because toggling constituent inference requires a reload. Marklevel
-	 * and step are preserved. Aspect and units are reset to defaults or whatever the new settings specified.
-	 **/
-	public void reload()
-	{
-		throw new UnsupportedOperationException();
-	}
-
+	
 	public void dump()
 	{
 		System.out.println(AHTideBaseStr.getString("Station.2") + getName()); //$NON-NLS-1$
@@ -148,7 +109,7 @@ public class Station implements Cloneable
 	}
 
 	/**
-	 * General method for generating output that fits into a String (CSV, TEXT). Note that list mode is implemented as StationIndex::print.
+	 * General method for generating output that fits into a String (CSV, TEXT).
 	 * 
 	 * @param tStartTime
 	 *          - the start of the prediction
@@ -158,25 +119,62 @@ public class Station implements Cloneable
 
 	public String print(AHTimestamp tStartTime, AHTimestamp tEndTime, Constants.Mode eMode, Constants.Format eFormat)
 	{
-		String strOut = "wrong mode: '" + eMode + "', not yet implemented";
-		if (eMode == Constants.Mode.PLAIN)
+		String strOut = "???";
+		switch (eMode)
+		{
+		case PLAIN:
 			strOut = plainMode(tStartTime, tEndTime, eFormat);
+			break;
+		case RAW:
+			strOut = rawMode(tStartTime, tEndTime, eFormat);
+			break;
+		default:
+			strOut = "wrong mode: '" + eMode + "', not yet implemented";
+		}
 		return strOut;
 	}
 
 	/**
 	 * iCalendar format output is actually produced by plainMode. From an engineering perspective this makes perfect sense. But from a usability
 	 * perspective, iCalendar output is a calendar and ought to appear in calendar mode. So calendarMode falls through to plainMode when i format is chosen.
-	 **/
+	 * 
+	 * @param tStartTime
+	 * @param tEndTime
+	 * @param eForm
+	 * @return
+	 */
 	public String plainMode(AHTimestamp tStartTime, AHTimestamp tEndTime, Constants.Format eForm)
 	{
 		// textBoilerplate(text_out, form);
 		String strTxtOut = new String();
+		strTxtOut += this.getName() + AHTideBaseStr.getString("AHTides.NewLine");
 		TideEventsOrganizer organizer = new TideEventsOrganizer();
-		predictTideEvents(tStartTime, tEndTime, organizer, Station.TideEventsFilter.NO_FILTER);
+		predictTideEvents(tStartTime, tEndTime, organizer, Station.TideEventsFilter.USUAL_TIDE_EVENTS);
 		for (TideEvent t: organizer.values())
 		{
-			strTxtOut += t.print(Constants.Mode.PLAIN, eForm, this) + AHTideBaseStr.getString("AHTides.NewLine"); //$NON-NLS-1$
+			strTxtOut += t.print(Constants.Mode.PLAIN, eForm) + AHTideBaseStr.getString("AHTides.NewLine");
+		}
+		return strTxtOut;
+	}
+
+	/**
+	 * raw mode predicts values in a fixed time spacing (150s for the time being).
+	 * 
+	 * @param tStartTime
+	 * @param tEndTime
+	 * @param eForm
+	 * @return
+	 */
+	public String rawMode(AHTimestamp tStartTime, AHTimestamp tEndTime, Constants.Format eForm)
+	{
+		// textBoilerplate(text_out, form);
+		String strTxtOut = new String();
+		strTxtOut += this.getName() + AHTideBaseStr.getString("AHTides.NewLine");
+		TideEventsOrganizer organizer = new TideEventsOrganizer();
+		predictTideDataRaw(tStartTime, tEndTime, organizer, Station.TideEventsFilter.USUAL_TIDE_EVENTS);
+		for (TideEvent t: organizer.values())
+		{
+			strTxtOut += t.print(Constants.Mode.PLAIN, eForm) + AHTideBaseStr.getString("AHTides.NewLine");
 		}
 		return strTxtOut;
 	}
@@ -224,33 +222,47 @@ public class Station implements Cloneable
 	}
 
 	/**
-	 * Get heights or velocities.
+	 * Get heights or velocities for a given moment in time.
 	 * 
 	 * @param predictTime
 	 * @return
 	 */
 	public PredictionValue predictTideLevel(AHTimestamp predictTime)
 	{
-		// logger.log(java.util.logging.Level.FINE, "predictTime = " +
-		// predictTime.getTime());
+		// logger.log(java.util.logging.Level.FINE, "predictTime = " + predictTime.getTime());
 		return finishPredictionValue(m_tConst.tideDerivative(predictTime, 0));
+	}
+
+	/**
+	 * Get heights or velocities for a given event, which knows its time.
+	 * 
+	 * @param TideEvent tEvent
+	 * @return
+	 */
+	public PredictionValue predictTideLevel(TideEvent tEvent)
+	{
+		// logger.log(java.util.logging.Level.FINE, "predictTime = " + predictTime.getTime());
+		return finishPredictionValue(m_tConst.tideDerivative(tEvent.getTime(), 0));
 	}
 
 	// non-overridable version
 	final public PredictionValue parentPredictTideLevel(AHTimestamp predictTime)
 	{
-		logger.log(java.util.logging.Level.FINE, AHTideBaseStr.getString("Station.12") + predictTime.getSeconds()); //$NON-NLS-1$
+		logger.log(java.util.logging.Level.FINE, AHTideBaseStr.getString("Station.12") + predictTime.getSeconds());
 		return finishPredictionValue(m_tConst.tideDerivative(predictTime, 0));
 	}
 
 	/**
 	 * 
-	 * Filters for predictTideEvents. NO_FILTER = maxes, mins, slacks, mark crossings, sun and moon KNOWN_TIDE_EVENTS = tide events that can be determined without
-	 * interpolation (maxes, mins, and sometimes slacks) MAX_MIN = maxes and mins
+	 * Filters for predictTideEvents. 
+	 * NO_FILTER = maxes, mins, slacks, mark crossings, sun and moon 
+	 * USUAL_TIDE_EVENTS = no sun and moon events 
+	 * KNOWN_TIDE_EVENTS = tide events that can be determined without interpolation (maxes, mins, and sometimes slacks) 
+	 * MAX_MIN = maxes and mins
 	 */
 	public enum TideEventsFilter
 	{
-		NO_FILTER, KNOWN_TIDE_EVENTS, MAX_MIN
+		NO_FILTER, KNOWN_TIDE_EVENTS, MAX_MIN, USUAL_TIDE_EVENTS
 	};
 
 	/**
@@ -265,7 +277,7 @@ public class Station implements Cloneable
 	 * @param organizer
 	 */
 
-	public void predictTideEvents(AHTimestamp startTime, AHTimestamp endTime, TideEventsOrganizer organizer)
+	public void predictAllTideEvents(AHTimestamp startTime, AHTimestamp endTime, TideEventsOrganizer organizer)
 	{
 		predictTideEvents(startTime, endTime, organizer, TideEventsFilter.NO_FILTER);
 	}
@@ -282,10 +294,48 @@ public class Station implements Cloneable
 		}
 	}
 
-	// Analogous, for raw readings.
-	public void predictRawEvents(AHTimestamp startTime, AHTimestamp endTime, TideEventsOrganizer organizer)
+	/**
+	 * @param startTime
+	 * @param endTime
+	 * @param organizer
+	 */
+	public void predictTideData(AHTimestamp startTime, AHTimestamp endTime, TideEventsOrganizer organizer)
 	{
-		throw new UnsupportedOperationException();
+		predictTideDataRaw(startTime, endTime, organizer, TideEventsFilter.USUAL_TIDE_EVENTS);
+	}
+
+	/**
+	 * @param startTime
+	 * @param endTime
+	 * @param organizer
+	 * @param filter
+	 */
+	public void predictTideDataRaw(AHTimestamp startTime, AHTimestamp endTime, TideEventsOrganizer organizer, TideEventsFilter filter)
+	{		
+		AHTimestamp tTs = startTime;
+		TideEvent startEvent, endEvent;
+		if (startTime.lt(endTime))
+		{
+			// add the 'usual' events
+			addSimpleTideEvents(startTime, endTime, organizer, filter);
+			// now add the intermediate 'events'
+			startEvent = new TideEvent(startTime);
+			startEvent.setLevel(predictTideLevel(startTime));
+			System.out.println(startEvent.print(Mode.RAW, Format.TEXT));
+			organizer.add(startEvent);
+			while (tTs.lt(endTime))
+			{
+				tTs.plusEquals(150);
+				TideEvent tEvent = new TideEvent(tTs);
+				tEvent.setLevel(predictTideLevel(tTs));
+				System.out.println(tEvent.print(Mode.RAW, Format.TEXT));
+				organizer.add(tEvent);
+			}
+			endEvent = new TideEvent(endTime);
+			endEvent.setLevel(predictTideLevel(endTime));
+			System.out.println(endEvent.print(Mode.RAW, Format.TEXT));
+			organizer.add(endEvent);
+		}
 	}
 
 	// Direction for extendRange.
@@ -314,14 +364,14 @@ public class Station implements Cloneable
 		if (direction == Direction.FORWARD)
 		{
 			TideEvent last = organizer.get(organizer.lastKey());
-			startTime = last.getEventTime();
+			startTime = last.getTime();
 			endTime = startTime.plus(howMuch);
 			startTime.minusEquals(Global.EVENT_SAFETY_MARGIN);
 		}
 		else
 		{
 			TideEvent first = organizer.get(organizer.firstKey());
-			endTime = first.getEventTime();
+			endTime = first.getTime();
 			startTime = endTime.minus(howMuch);
 			endTime.plusEquals(Global.EVENT_SAFETY_MARGIN);
 		}
@@ -344,12 +394,12 @@ public class Station implements Cloneable
 		this.aspect = aspect;
 	}
 
-	public NullablePredictionValue getMarkLevel()
+	public PredictionValue getMarkLevel()
 	{
 		return markLevel;
 	}
 
-	public void setMarkLevel(NullablePredictionValue markLevel)
+	public void setMarkLevel(PredictionValue markLevel)
 	{
 		this.markLevel = markLevel;
 	}
@@ -473,14 +523,15 @@ public class Station implements Cloneable
 	}
 
 	/*
-	 * findZero (time_t t1, time_t t2, double (*f)(time_t t, int deriv)) Find a zero of the function f, which is bracketed by t1 and t2. Returns a value which is
-	 * either an exact zero of f, or slightly past the zero of f.
+	 * findZero (time_t t1, time_t t2, double (*f)(time_t t, int deriv)) 
+	 * Find a zero of the function f, which is bracketed by t1 and t2. 
+	 * Returns a value which is either an exact zero of f, or slightly past the zero of f.
 	 */
 
 	// Root finder.
-	// * If tl >= tr, assertion failure.
-	// * If tl and tr do not bracket a root, assertion failure.
-	// * If a root exists exactly at tl or tr, assertion failure.
+	// If tl >= tr, assertion failure.
+	// If tl and tr do not bracket a root, assertion failure.
+	// If a root exists exactly at tl or tr, assertion failure.
 
 	private AHTimestamp findZero(AHTimestamp tl, AHTimestamp tr, DairikiFunctor functor, PredictionValue marklev)
 	{
@@ -510,17 +561,11 @@ public class Station implements Cloneable
 			if (t.isNull())
 				dt = new Interval(Global.ZERO_INTERVAL); // Force bisection on
 			// first step
-			else if (PredictionValue.abs(ft).gt(f_thresh) /*
-																										 * not decreasing fast enough
-																										 */
-					|| (ft.getValue() > 0.0 ? /*
-																		 * newton step would go outside bracket
-																		 */
-					(fp.lte(ft.divide(t.minus(tl).getSeconds()))) : (fp.lte(ft.negative().divide(tr.minus(t).getSeconds())))))
+			else if ((PredictionValue.abs(ft).gt(f_thresh)) || (ft.getValue() > 0.0 ? (fp.lte(ft.divide(t.minus(tl).getSeconds()))) : (fp.lte(ft.negative().divide(tr.minus(t).getSeconds())))))
 				dt = new Interval(Global.ZERO_INTERVAL); /* Force bisection */
 			else
 			{
-				/* Attempt a newton step */
+				// Attempt a newton step
 				assert (fp.getValue() != 0.0);
 				// Here I actually do want to round away from zero.
 				dt = new Interval(llround(ft.negative().divide(fp)));
@@ -535,20 +580,18 @@ public class Station implements Cloneable
 
 				t.plusEquals(dt);
 				if (t.gte(tr) || t.lte(tl))
-					dt = new Interval(Global.ZERO_INTERVAL); /*
-																										 * Force bisection if outside bracket
-																										 */
+					dt = new Interval(Global.ZERO_INTERVAL); // Force bisection if outside bracket
 				f_thresh = ft.abs().divide(2.0);
 			}
 			if (dt.equals(Global.ZERO_INTERVAL))
 			{
-				/* Newton step failed, do bisection */
+				// Newton step failed, do bisection
 				t = tl.plus(tr.minus(tl).divide(2));
 				f_thresh = fr.gt(fl.negative()) ? new PredictionValue(fr) : new PredictionValue(fl.negative());
 			}
 			ft = functor.functor(t, 0, marklev).times(scale);
 			if (ft.getValue() == 0.0)
-				return t; /* Exact zero */
+				return t; // Exact zero
 			else if (ft.getValue() > 0.0)
 			{
 				tr = new AHTimestamp(t);
@@ -602,8 +645,7 @@ public class Station implements Cloneable
 
 	}
 
-	// Find the marklev crossing in this bracket. Used for both
-	// markLevel and slacks.
+	// Find the marklev crossing in this bracket. Used for both markLevel and slacks.
 	// * Doesn't matter which of t1 and t2 is greater.
 	// * If t1 == t2, returns null.
 	// * If t1 and t2 do not bracket a mark crossing, returns null.
@@ -696,17 +738,17 @@ public class Station implements Cloneable
 
 		tLeft = new AHTimestamp(t);
 
-		/* If we start at a zero, step forward until we're past it. */
+		// If we start at a zero, step forward until we're past it.
 		while ((fLeft = new MaxMinZeroFn().functor(tLeft, 0, junk)).getValue() == 0.0)
 			tLeft = tLeft.plus(Global.EVENT_PRECISION);
 
 		if (fLeft.getValue() < 0.0)
 		{
-			tideEvent_out.setEventType(TideEvent.EventType.MIN);
+			tideEvent_out.setType(TideEvent.EventType.MIN);
 		}
 		else
 		{
-			tideEvent_out.setEventType(TideEvent.EventType.MAX);
+			tideEvent_out.setType(TideEvent.EventType.MAX);
 			scale = -1.0;
 			fLeft.negate();
 		}
@@ -751,7 +793,7 @@ public class Station implements Cloneable
 
 			if (fRight.getValue() > 0.0)
 			{ /* Found a bracket */
-				tideEvent_out.setEventTime(findZero(tLeft, tRight, new MaxMinZeroFn(), junk));
+				tideEvent_out.setTime(findZero(tLeft, tRight, new MaxMinZeroFn(), junk));
 				return tideEvent_out;
 			}
 
@@ -760,9 +802,8 @@ public class Station implements Cloneable
 		}
 	}
 
-	// Wrapper for findMarkCrossing_Dairiki that does necessary
-	// compensations for getDatum, KnotsSquared, and units. Used for both
-	// markLevel and slacks.
+	// Wrapper for findMarkCrossing_Dairiki that does necessary compensations for getDatum, KnotsSquared, and units. 
+	// Used for both markLevel and slacks.
 	protected MarkCrossing findSimpleMarkCrossing(AHTimestamp t1, AHTimestamp t2, PredictionValue marklev)
 	{
 		// marklev must compensate for getDatum and KnotsSquared. See
@@ -778,7 +819,6 @@ public class Station implements Cloneable
 		return findMarkCrossing_Dairiki(t1, t2, marklev);
 	}
 
-	// Submethods of predictTideEvents.
 	/**
 	 * 
 	 * 
@@ -792,8 +832,7 @@ public class Station implements Cloneable
 		boolean isRising = false;
 		TideEvent te = new TideEvent();
 
-		// loopTime is the "internal" timestamp for scanning the reference
-		// station.
+		// loopTime is the "internal" timestamp for scanning the reference station.
 		// The timestamps of each event get mangled for substations.
 		AHTimestamp loopTime = startTime.minus(maximumTimeOffset);
 		AHTimestamp loopEndTime = endTime.minus(minimumTimeOffset);
@@ -806,31 +845,30 @@ public class Station implements Cloneable
 
 			// Get next max or min.
 			te = nextMaxMin(loopTime);
-			loopTime.setTime(te.getEventTime());
-			finishTideEvent(te);
-			if (te.getEventTime().gte(startTime) && te.getEventTime().lt(endTime))
+			loopTime.setTime(te.getTime());
+			te = finishTideEvent(te);
+			if (te.getTime().gte(startTime) && te.getTime().lt(endTime))
 			{
 				organizer.add(te);
-				logger.log(java.util.logging.Level.FINE,
-						String.format(AHTideBaseStr.getString("Station.17"), te.getEventTime().getSeconds(), te.getEventType().ordinal(), te.getEventLevel().getValue())); //$NON-NLS-1$
+				logger.log(java.util.logging.Level.FINE, String.format(AHTideBaseStr.getString("Station.17"), te.getTime().getSeconds(), te.getType().ordinal(), te.getLevel().getValue())); //$NON-NLS-1$
 			}
 
-			// Check for slacks, if applicable. Skip the ones that need
-			// interpolation; those are done in
-			// SubordinateStation::addInterpolatedSubstationMarkCrossingEvents.
+			// Check for slacks, if applicable. Skip the ones that need interpolation; 
+			// those are done in SubordinateStation::addInterpolatedSubstationMarkCrossingEvents.
 			if (filter != TideEventsFilter.MAX_MIN && m_bIsCurrent
-					&& ((te.getEventType() == TideEvent.EventType.MAX && haveFloodBegins()) || (te.getEventType() == TideEvent.EventType.MIN && haveEbbBegins())))
+					&& ((te.getType() == TideEvent.EventType.MAX && haveFloodBegins()) 
+							|| (te.getType() == TideEvent.EventType.MIN && haveEbbBegins())))
 			{
 				te = new TideEvent(te);
 				MarkCrossing mc = findSimpleMarkCrossing(previousLoopTime, loopTime, new PredictionValue(predictUnits(), 0.0));
 				// te.setEventTime(mc.getT());
-				te.setEventTime(new AHTimestamp(mc.getT()));
+				te.setTime(new AHTimestamp(mc.getT()));
 				isRising = mc.isRising();
-				if (!(te.getEventTime().isNull()))
+				if (!(te.getTime().isNull()))
 				{
-					te.setEventType(isRising ? TideEvent.EventType.SLACKRISE : TideEvent.EventType.SLACKFALL);
-					finishTideEvent(te);
-					if (te.getEventTime().compareTo(startTime) >= 0 && te.getEventTime().compareTo(endTime) < 0)
+					te.setType(isRising ? TideEvent.EventType.SLACKRISE : TideEvent.EventType.SLACKFALL);
+					te = finishTideEvent(te);
+					if (te.getTime().compareTo(startTime) >= 0 && te.getTime().compareTo(endTime) < 0)
 					{
 						organizer.add(te);
 					}
@@ -841,16 +879,16 @@ public class Station implements Cloneable
 			if ((!isSubordinateStation()) && (!markLevel.isNull()) && (filter == TideEventsFilter.NO_FILTER))
 			{
 				te = new TideEvent(te);
-				MarkCrossing mc = findSimpleMarkCrossing(previousLoopTime, loopTime, markLevel.asPredictionValue());
-				te.setEventTime(mc.getT());
+				MarkCrossing mc = findSimpleMarkCrossing(previousLoopTime, loopTime, markLevel);
+				te.setTime(mc.getT());
 				isRising = mc.isRising();
-				if (!(te.getEventTime().isNull()))
+				if (!(te.getTime().isNull()))
 				{
-					te.setEventType(isRising ? TideEvent.EventType.MARKRISE : TideEvent.EventType.MARKFALL);
-					finishTideEvent(te);
+					te.setType(isRising ? TideEvent.EventType.MARKRISE : TideEvent.EventType.MARKFALL);
+					te = finishTideEvent(te);
 				}
 
-				if (te.getEventTime().compareTo(startTime) >= 0 && te.getEventTime().compareTo(endTime) < 0)
+				if (te.getTime().compareTo(startTime) >= 0 && te.getTime().compareTo(endTime) < 0)
 				{
 					organizer.add(te);
 				}
@@ -860,31 +898,33 @@ public class Station implements Cloneable
 
 	private void addSunMoonEvents(AHTimestamp startTime, AHTimestamp endTime, TideEventsOrganizer organizer)
 	{
-		logger.warning(AHTideBaseStr.getString("Station.18")); //$NON-NLS-1$
+		logger.warning(AHTideBaseStr.getString("Station.18"));
 	}
 
 	/**
 	 * Given eventTime and eventType, fill in other fields and possibly apply corrections.
+	 * Should be done when constructing the TideEvent object TideEvent(AHTimestamp, EventType).
 	 * 
 	 * @param te
 	 */
-	protected void finishTideEvent(TideEvent te)
+	protected TideEvent finishTideEvent(TideEvent te)
 	{
-		te.setIsCurrent(m_bIsCurrent);
-		te.getUncorrectedEventTime().makeNull();
-		te.getUncorrectedEventLevel().makeNull();
+		if (m_bIsCurrent)
+			te.makeCurrent();
+		te.setUncorrectedEventTime(new AHTimestamp());
+		te.setUncorrectedEventLevel(new PredictionValue());
 		if (te.isSunMoonEvent())
-		{
-			te.getEventLevel().makeNull();
-		}
+			te.setLevel(new PredictionValue());
 		else
-		{
-			te.setEventLevel(new NullablePredictionValue(parentPredictTideLevel(te.getEventTime())));
-		}
+			te.setLevel(new PredictionValue(parentPredictTideLevel(te.getTime())));
+		return te;
 	}
 
-	// Given PredictionValue from ConstituentSet::tideDerivative, fix up
-	// hydraulic current units and apply getDatum.
+	/**
+	 * Given PredictionValue from ConstituentSet::tideDerivative, fix up hydraulic current units and apply getDatum.
+	 * @param pv partially prediction value
+	 * @return finished prediction value
+	 */
 	private PredictionValue finishPredictionValue(PredictionValue pv)
 	{
 		if (AHTUnits.isHydraulicCurrent(pv.getUnits()))
@@ -906,4 +946,117 @@ public class Station implements Cloneable
 		}
 		return ret;
 	}
+	/**
+	 * @return the logger
+	 */
+	public Logger getLogger()
+	{
+		return logger;
+	}
+
+	/**
+	 * @param logger the logger to set
+	 */
+	public void setLogger(Logger logger)
+	{
+		this.logger = logger;
+	}
+
+	/**
+	 * @return the m_ID
+	 */
+	public int getID()
+	{
+		return m_ID;
+	}
+
+	/**
+	 * @param m_ID the m_ID to set
+	 */
+	public void setID(int m_ID)
+	{
+		this.m_ID = m_ID;
+	}
+
+	/**
+	 * @param m_strName the m_strName to set
+	 */
+	public void setName(String m_strName)
+	{
+		this.m_strName = m_strName;
+	}
+
+	/**
+	 * @param m_TimeZone the m_TimeZone to set
+	 */
+	public void setTimeZone(String m_TimeZone)
+	{
+		this.m_TimeZone = m_TimeZone;
+	}
+
+	/**
+	 * @param m_strNotes the m_strNotes to set
+	 */
+	public void setNotes(String m_strNotes)
+	{
+		this.m_strNotes = m_strNotes;
+	}
+
+	/**
+	 * @param m_Coordinates the m_Coordinates to set
+	 */
+	public void setCoordinates(Coordinates m_Coordinates)
+	{
+		this.m_Coordinates = m_Coordinates;
+	}
+
+	/**
+	 * @return the m_tConst
+	 */
+	public ConstituentSet getConst()
+	{
+		return m_tConst;
+	}
+
+	/**
+	 * @param m_tConst the m_tConst to set
+	 */
+	public void setConst(ConstituentSet m_tConst)
+	{
+		this.m_tConst = m_tConst;
+	}
+
+	/**
+	 * @return the minimumTimeOffset
+	 */
+	public Interval getMinimumTimeOffset()
+	{
+		return minimumTimeOffset;
+	}
+
+	/**
+	 * @param minimumTimeOffset the minimumTimeOffset to set
+	 */
+	public void setMinimumTimeOffset(Interval minimumTimeOffset)
+	{
+		this.minimumTimeOffset = minimumTimeOffset;
+	}
+
+	/**
+	 * @return the maximumTimeOffset
+	 */
+	public Interval getMaximumTimeOffset()
+	{
+		return maximumTimeOffset;
+	}
+
+	/**
+	 * @param maximumTimeOffset the maximumTimeOffset to set
+	 */
+	public void setMaximumTimeOffset(Interval maximumTimeOffset)
+	{
+		this.maximumTimeOffset = maximumTimeOffset;
+	}
+
+
 }

@@ -16,7 +16,6 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-//package net.floogle.jTide;
 package ahdt.tides.base;
 
 import java.util.LinkedList;
@@ -179,9 +178,14 @@ public class ConstituentSet
 		return prefer(datum, preferredLengthUnits);
 	}
 
-	// Calculate (deriv)th time derivative of the normalized tide (for
-	// time in s). The result does not have the getDatum added in and will
-	// not be converted from KnotsSquared.
+	/**
+	 * Calculate (deriv)th time derivative of the normalized tide (for time in s). 
+	 * The result does not have the getDatum added in and will not be converted from KnotsSquared.
+	 * 
+	 * @param predictTime
+	 * @param deriv
+	 * @return
+	 */
 	public PredictionValue tideDerivative(AHTimestamp predictTime, int deriv)
 	{
 		Year year = new Year(predictTime.getYear());
@@ -189,10 +193,7 @@ public class ConstituentSet
 			changeYear(year);
 		// TODO: Handle end of year blending
 		Interval sinceEpoch = predictTime.minus(epoch);
-		logger
-				.log(
-						java.util.logging.Level.FINE,
-						AHTideBaseStr.getString("ConstituentSet.1") + predictTime.getSeconds() + AHTideBaseStr.getString("ConstituentSet.2") + epoch.getSeconds() + AHTideBaseStr.getString("ConstituentSet.3") + sinceEpoch.getSeconds()); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
+		logger.log(java.util.logging.Level.FINE, AHTideBaseStr.getString("ConstituentSet.1") + predictTime.getSeconds() + AHTideBaseStr.getString("ConstituentSet.2") + epoch.getSeconds() + AHTideBaseStr.getString("ConstituentSet.3") + sinceEpoch.getSeconds());
 		return prefer(tideDerivative(sinceEpoch, deriv), preferredLengthUnits);
 	}
 
@@ -232,60 +233,60 @@ public class ConstituentSet
 			throw new RuntimeException(AHTideBaseStr.getString("ConstituentSet.4")); //$NON-NLS-1$
 	}
 
-	// Calculate (deriv)th time derivative of the normalized tide for
-	// time in s since the beginning (UTC) of currentYear, WITHOUT
-	// changing years or blending.
-
-	// XTide spends more time in this method than anywhere else.
-	// In XTide 2.8.3 and previous, the high-level data types (Speed,
-	// Amplitude, Interval, etc.) were used to shuttle data around, but at
-	// the last minute everything reverted to C arrays of doubles just to
-	// make this loop run faster. The Great Cleanup of 2006 got rid of
-	// that hypocrisy. Most use cases showed no noticeable impact, but
-	// those that involved generating a really long series of predictions
-	// (e.g., for stats mode or calendar mode) initially showed alarming
-	// slowdowns of 300% and worse. Conversion of select methods and
-	// functions to inlines, plusEquals the avoidance of one type conversion
-	// that could not be inlined, shaved the performance hit to about 15%,
-	// which is close enough to argue that the benefits of high-level data
-	// types exceed the costs.
-
+	/**
+	 * Calculate (deriv)th time derivative of the normalized tide for time in s since the beginning (UTC) of currentYear, 
+	 * WITHOUT changing years or blending.
+	 * 
+	 * XTide spends more time in this method than anywhere else. In XTide 2.8.3 and previous, the high-level data types 
+	 * (Speed, Amplitude, Interval, etc.) were used to shuttle data around, but at the last minute everything reverted 
+	 * to C arrays of doubles just to make this loop run faster. The Great Cleanup of 2006 got rid of that hypocrisy. 
+	 * Most use cases showed no noticeable impact, but those that involved generating a really long series of predictions
+	 * (e.g., for stats mode or calendar mode) initially showed alarming slowdowns of 300% and worse. Conversion of select methods and
+	 * functions to inlines, plusEquals the avoidance of one type conversion that could not be inlined, shaved the performance hit to about 15%,
+	 * which is close enough to argue that the benefits of high-level data types exceed the costs.
+	 * 
+	 * This performance description is obsolete for this java implementation. Has to be reevaluated AH 2013
+	 * 	
+	 * @param sinceEpoch
+	 * @param deriv
+	 * @return Prediction Value
+	 */
 	public PredictionValue tideDerivative(Interval sinceEpoch, int deriv)
 	{
 		PredictionValue dt_tide = new PredictionValue();
 		Angle tempd = new Angle(AHTideAngleUnits.RADIANS, Math.PI / 2.0 * deriv);
-		// logger.log(java.util.logging.Level.FINE, "sinceEpoch = " +
-		// sinceEpoch.getSeconds());
+		// logger.log(java.util.logging.Level.FINE, "sinceEpoch = " + sinceEpoch.getSeconds());
 		for (int a = 0; a < constituents.size(); ++a)
 		{
 			PredictionValue term = new PredictionValue();
 			Angle temp = tempd.add(constituents.get(a).getSpeed().getRadiansPerSecond() * sinceEpoch.getSeconds() + phases.get(a).asRadians());
 			term = amplitudes.get(a).times(Math.cos(temp.asRadians()));
-			logger.log(java.util.logging.Level.FINE,
-					String.format(AHTideBaseStr.getString("ConstituentSet.5"), amplitudes.get(a).getValue(), constituents.get(a).getSpeed().getRadiansPerSecond(), //$NON-NLS-1$
-							phases.get(a).asRadians()));
-			String deb = AHTideBaseStr.getString("ConstituentSet.6"); //$NON-NLS-1$
+			logger.log(java.util.logging.Level.FINE, String.format(AHTideBaseStr.getString("ConstituentSet.5"), amplitudes.get(a).getValue(), constituents.get(a).getSpeed().getRadiansPerSecond(), phases.get(a).asRadians()));
+			String deb = AHTideBaseStr.getString("ConstituentSet.6");
 			for (int b = deriv; b > 0; --b)
 			{
 				term = term.times(constituents.get(a).getSpeed().getRadiansPerSecond());
-				deb += String.format(AHTideBaseStr.getString("ConstituentSet.7"), term.getValue()); //$NON-NLS-1$
+				deb += String.format(AHTideBaseStr.getString("ConstituentSet.7"), term.getValue());
 			}
 			logger.log(java.util.logging.Level.FINE, deb);
 			dt_tide.plusEquals(term);
 		}
-		logger.log(java.util.logging.Level.FINE, AHTideBaseStr.getString("ConstituentSet.8") + dt_tide.getValue()); //$NON-NLS-1$
+		logger.log(java.util.logging.Level.FINE, AHTideBaseStr.getString("ConstituentSet.8") + dt_tide.getValue());
 		return dt_tide;
 	}
 
 	// Called by tideDerivative(Timestamp) to blend tides near year ends.
 	public PredictionValue blendTide(AHTimestamp predictTime, int deriv, Year firstYear, double blend)
 	{
-		throw new UnsupportedOperationException(AHTideBaseStr.getString("ConstituentSet.9")); //$NON-NLS-1$
+		throw new UnsupportedOperationException(AHTideBaseStr.getString("ConstituentSet.9"));
 	}
 
-	// Convert to preferredLengthUnits if this conversion makes sense;
-	// return value unchanged otherwise.
-
+	/**
+	 * Convert v to preferredLengthUnits if this conversion makes sense; return v unchanged otherwise.
+	 * @param v Amplitude
+	 * @param preferredLengthUnits
+	 * @return v in preferredLengthUnits if this conversion makes sense; unchanged otherwise
+	 */
 	private Amplitude prefer(Amplitude v, AHTidePredictionUnits preferredLengthUnits)
 	{
 		assert ( !AHTUnits.isCurrent(preferredLengthUnits));
@@ -297,6 +298,12 @@ public class ConstituentSet
 		return vl;
 	}
 
+	/**
+	 * Convert v to preferredLengthUnits if this conversion makes sense; return v unchanged otherwise.
+	 * @param v PredictionValue
+	 * @param preferredLengthUnits
+	 * @return v in preferredLengthUnits if this conversion makes sense; unchanged otherwise
+	 */
 	private PredictionValue prefer(PredictionValue v, AHTidePredictionUnits preferredLengthUnits)
 	{
 		assert ( !AHTUnits.isCurrent(preferredLengthUnits));

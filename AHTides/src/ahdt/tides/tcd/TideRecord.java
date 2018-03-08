@@ -26,7 +26,9 @@ import ahdt.tides.base.AHTUnits.AHTidePredictionUnits;
 import ahdt.tides.base.Amplitude;
 import ahdt.tides.base.Constituent;
 import ahdt.tides.base.ConstituentSet;
+import ahdt.tides.base.HairyOffsets;
 import ahdt.tides.base.Interval;
+import ahdt.tides.base.NullableInterval;
 import ahdt.tides.base.PredictionValue;
 import ahdt.tides.base.SimpleOffsets;
 import ahdt.tides.base.XByteBuffer;
@@ -770,6 +772,27 @@ public final class TideRecord
 		// cs.setUnits (Units::parse (u));
 
 		return cs;
+	}
+	
+	/**
+	 * 
+	 * @return HairyOffsets of the record
+	 */
+	public HairyOffsets getHairyOffsets()
+	{
+		NullableInterval tempFloodBegins = new NullableInterval(), tempEbbBegins = new NullableInterval();
+
+		// For these, zero is not the same as null.
+		if (getFloodBegins() != TideDB.NULL_SLACK_OFFSET)
+			tempFloodBegins = new NullableInterval(new Interval(TideDB.getTimeNeatStr(getFloodBegins())));
+		if (getEbbBegins() != TideDB.NULL_SLACK_OFFSET)
+			tempEbbBegins = new NullableInterval(new Interval(TideDB.getTimeNeatStr(getEbbBegins())));
+
+		AHTidePredictionUnits lu = tideDB.levelAddUnits(this);
+		HairyOffsets ho = new HairyOffsets(new SimpleOffsets(new Interval(TideDB.getTimeNeatStr(getMaxTimeAdd())), new PredictionValue(lu, getMaxLevelAdd()),
+				getMaxLevelMultiply()), new SimpleOffsets(new Interval(TideDB.getTimeNeatStr(getMinTimeAdd())), new PredictionValue(lu, getMinLevelAdd()),
+				getMinLevelMultiply()), tempFloodBegins, tempEbbBegins);
+		return ho;
 	}
 
 	/**

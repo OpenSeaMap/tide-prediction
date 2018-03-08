@@ -50,7 +50,7 @@ public class AHPredServerThread extends Thread
 			AHPredProto tAHPP = new AHPredProto(eProtoState.WAITING);
 			tJob = tAHPP.processRequest(strIn);
 			Station tStat = m_TideDB.createStation(tJob.getStatID());
-			strOutput = tStat.print(tJob.getStart(), tJob.getEnd(), tMode, tForm);
+			strOutput = tStat.print(tJob.getStart(), tJob.getEnd(), tJob.getMode(), tForm);
 			System.out.println(strOutput);
 			tOut.println(strOutput);
 
